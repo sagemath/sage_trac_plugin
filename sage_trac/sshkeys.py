@@ -1,5 +1,5 @@
 from trac.core import Component, implements, TracError
-from trac.web.chrome import ITemplateProvider
+from trac.web.chrome import ITemplateProvider, add_notice
 from trac.util.translation import gettext
 from trac.prefs import IPreferencePanelProvider
 from trac.admin.api import IAdminCommandProvider
