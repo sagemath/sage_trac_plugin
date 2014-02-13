@@ -64,8 +64,11 @@ class TicketBranch(git_merger.GitMerger):
                 branch = self._git[branch]
                 filters.append(
                         FILTER_TEXT.replace(branch.hex[:7]+' '))
-            except KeyError:
-                return error("branch does not exist")
+            except (KeyError, ValueError) as err:
+                if err.message.find('Ambiguous') < 0:
+                    return error("branch does not exist")
+                else:
+                    return error("sha1 hash is too ambiguous")
 
         ret = self.get_merge(branch)
 
