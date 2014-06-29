@@ -5,6 +5,10 @@ import os.path
 
 from common import *
 
+from trac.core import implements
+from trac.ticket.model import Ticket
+from tracrpc.api import IXMLRPCHandler
+
 GIT_SPECIAL_MERGES = ('GIT_FASTFORWARD', 'GIT_UPTODATE', 'GIT_FAILED_MERGE')
 for _merge in GIT_SPECIAL_MERGES:
     globals()[_merge] = _merge
@@ -12,6 +16,7 @@ for _merge in GIT_SPECIAL_MERGES:
 TRAC_SIGNATURE = pygit2.Signature('trac', 'trac@sagemath.org')
 
 class GitMerger(GitBase):
+    implements(IXMLRPCHandler)
 
     def get_merge(self, commit):
         ret = GitMerger._get_cache(self, commit)
@@ -118,3 +123,19 @@ class GitMerger(GitBase):
             import shutil
             shutil.rmtree(tmpdir)
         return ret
+
+    def getMerge(self, req, ticketnum):
+        ticket = Ticket(self.env, ticketnum)
+        req.perm(ticket.resource).require('TICKET_VIEW')
+        try:
+            commit = self.generic_lookup(ticket['branch'].strip())[1]
+        except (KeyError, ValueError):
+            return ''
+        return self.get_merge(commit).hex
+
+    # IXMLRPCHandler methods
+    def xmlrpc_namespace(self):
+        return 'merger'
+
+    def xmlrpc_methods(self):
+        yield (None, ((str, int),), self.getMerge)

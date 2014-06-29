@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+
 from trac.core import implements
 from trac.ticket.api import ITicketManipulator
 from trac.ticket.model import Ticket
