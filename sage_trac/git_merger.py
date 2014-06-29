@@ -14,18 +14,18 @@ TRAC_SIGNATURE = pygit2.Signature('trac', 'trac@sagemath.org')
 class GitMerger(GitBase):
 
     def get_merge(self, commit):
-        ret = self._get_cache(commit)
+        ret = GitMerger._get_cache(self, commit)
         if ret is None:
             try:
                 ret = self._merge(commit)
             except pygit2.GitError:
                 ret = GIT_FAILED_MERGE
 
-            self._set_cache(commit, ret)
+            GitMerger._set_cache(self, commit, ret)
         return ret
 
     def _get_cache(self, commit):
-        self._create_table()
+        GitMerger._create_table(self)
         with self.env.db_query as db:
             cursor = db.cursor()
             cursor.execute('SELECT base, tmp FROM "merge_store" WHERE target=%s', (commit.hex,))
@@ -33,25 +33,21 @@ class GitMerger(GitBase):
                 base, tmp = cursor.next()
             except StopIteration:
                 return None
-        if base != self.master_sha1:
-            self._drop_table()
+        if base != self.master.hex:
+            GitMerger._drop_table(self)
             return None
         if tmp in GIT_SPECIAL_MERGES:
             return tmp
         return self._git.get(tmp)
 
     def _set_cache(self, commit, tmp):
-        self._create_table()
+        GitMerger._create_table(self)
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('DELETE FROM "merge_store" WHERE target=%s', (commit.hex,))
             if tmp not in GIT_SPECIAL_MERGES:
                 tmp = tmp.hex
-            cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)', (self.master_sha1, commit.hex, tmp))
-
-    @property
-    def master_sha1(self):
-        return self._git.lookup_branch(MASTER_BRANCH).get_object().hex
+            cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)', (self.master.hex, commit.hex, tmp))
 
     def _create_table(self):
         with self.env.db_transaction as db:
@@ -109,14 +105,15 @@ class GitMerger(GitBase):
                     return self._git.write(pygit2.GIT_OBJ_TREE, tree.read_raw())
                 merge_tree = recursive_write(repo.get(merge_tree))
 
-                ret = self._git.create_commit(
-                        None, # don't update any refs
-                        TRAC_SIGNATURE, # author
-                        TRAC_SIGNATURE, # committer
-                        'Temporary merge of %s into %s'%(commit.hex, repo.head.get_object().hex), # merge message
-                        merge_tree, # commit's tree
-                        [repo.head.get_object().oid, commit.oid], # parents
-                        )
+                ret = self._git.get(
+                        self._git.create_commit(
+                            None, # don't update any refs
+                            TRAC_SIGNATURE, # author
+                            TRAC_SIGNATURE, # committer
+                            'Temporary merge of %s into %s'%(commit.hex, repo.head.get_object().hex), # merge message
+                            merge_tree, # commit's tree
+                            [repo.head.get_object().oid, commit.oid], # parents
+                        ))
         finally:
             import shutil
             shutil.rmtree(tmpdir)

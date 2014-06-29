@@ -30,7 +30,7 @@ class TicketBranch(git_merger.GitMerger):
         Reformat the ``branch`` field of a ticket to show the history of the
         linked branch.
         """
-        branch = data.get('ticket', {'branch':None})['branch']
+        branch = data.get('ticket', {'branch': None})['branch']
         if filename != 'ticket.html' or not branch:
             return stream
 
@@ -51,24 +51,16 @@ class TicketBranch(git_merger.GitMerger):
 
         filters = []
 
-        for s in ('refs/heads/', 'refs/tags/'):
-            # check for branches then tags
-            try:
-                branch = self._git.lookup_reference(s+branch).get_object()
-                break
-            except KeyError:
-                pass
-        else:
-            # and finally try raw sha1 hexes if all else fails
-            try:
-                branch = self._git[branch]
+        try:
+            is_sha, branch = self.generic_lookup(branch)
+            if is_sha:
                 filters.append(
                         FILTER_TEXT.replace(branch.hex[:7]+' '))
-            except (KeyError, ValueError) as err:
-                if err.message.find('Ambiguous') < 0:
-                    return error("branch does not exist")
-                else:
-                    return error("sha1 hash is too ambiguous")
+        except (KeyError, ValueError) as err:
+            if err.message.find('Ambiguous') < 0:
+                return error("branch does not exist")
+            else:
+                return error("sha1 hash is too ambiguous")
 
         ret = self.get_merge(branch)
 
@@ -78,44 +70,38 @@ class TicketBranch(git_merger.GitMerger):
             if base is not None:
                 filters.append(
                         FILTER.append(tag.a('(Commits)',
-                            href=GIT_LOG_RANGE_URL.format(
-                                base=base.hex,
-                                branch=branch.hex))))
+                            href=self.log_url(base, branch))))
             if merge is None:
                 filters.append(
                         FILTER.attr("class", "positive_review"))
             else:
                 filters.append(
                         FILTER_TEXT.wrap(tag.a(class_="positive_review",
-                            href=GIT_COMMIT_URL.format(commit=merge.hex))))
+                            href=self.commit_url(merge))))
             filters.append(
                     FILTER.attr("title", "already merged"))
         else:
             filters.append(
                     FILTER.append(tag.a('(Commits)',
-                        href=GIT_LOG_RANGE_URL.format(
-                            base=self.master_sha1,
-                            branch=branch.hex))))
+                        href=self.log_url(self.master, branch))))
 
             if ret == git_merger.GIT_FAILED_MERGE:
                 return error("trac's automerging failed", filters)
             elif ret == git_merger.GIT_FASTFORWARD:
                 filters.append(
                         FILTER_TEXT.wrap(tag.a(class_="positive_review",
-                            href=GIT_DIFF_RANGE_URL.format(
-                                base=self.master_sha1,
-                                branch=branch.hex))))
+                            href=self.diff_url(self.master, branch))))
             else:
                 filters.append(
                         FILTER_TEXT.wrap(tag.a(class_="positive_review",
-                            href=GIT_DIFF_URL.format(commit=ret.hex))))
+                            href=self.diff_url(ret))))
                 filters.append(
                         FILTER.attr("title", "merges cleanly"))
 
         return apply_filters(filters)
 
     def find_base_and_merge(self, branch):
-        walker = self._git.walk(self.master_sha1,
+        walker = self._git.walk(self.master.oid,
                 pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE)
         walker.hide(branch.oid)
         for commit in walker:
