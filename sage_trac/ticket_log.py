@@ -49,7 +49,7 @@ class TicketLog(GitBase):
                 title = u''
             table.append(
                     u'||[%s %s]||{{{%s}}}||'%(
-                        GIT_COMMIT_URL.format(commit=commit.hex),
+                        self.commit_url(commit),
                         short_sha1,
                         title))
         return table
