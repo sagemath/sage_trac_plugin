@@ -77,12 +77,15 @@ class GitMerger(GitBase):
             subprocess.call(['git', 'clone', self.git_dir, tmpdir, '--branch=%s'%MASTER_BRANCH])
 
             repo = pygit2.Repository(tmpdir)
-            merge = repo.merge(commit.oid)
-            if merge.is_fastforward:
+            merge, _ = repo.merge_analysis(commit.oid)
+            if merge & pygit2.GIT_MERGE_ANALYSIS_FASTFORWARD:
                 ret = GIT_FASTFORWARD
-            elif merge.is_uptodate:
+            elif merge & pygit2.GIT_MERGE_ANALYSIS_UP_TO_DATE:
                 ret = GIT_UPTODATE
             else:
+                # non-trivial merge, so run merge algorithm
+                repo.merge(commit.oid)
+
                 # record the files that changed
                 changed = set()
                 for file, s in repo.status().items():
@@ -105,6 +108,9 @@ class GitMerger(GitBase):
                             obj = repo.get(obj.oid)
                             if isinstance(obj, pygit2.Tree):
                                 recursive_write(obj, new_path)
+                            elif obj is None:
+                                # probably a subproject reference
+                                continue
                             else:
                                 self._git.write(pygit2.GIT_OBJ_BLOB, obj.read_raw())
                     return self._git.write(pygit2.GIT_OBJ_TREE, tree.read_raw())
