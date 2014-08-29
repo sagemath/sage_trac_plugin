@@ -149,7 +149,7 @@ class BuildbotHook(git_merger.GitMerger):
         queue = multiprocessing.Queue()
 
         def call_addChange(remote):
-            self.log.error('sucessfully connected to {}'.format(self.host))
+            self.log.debug('sucessfully connected to {}'.format(self.host))
             deferred = remote.callRemote('addChange', change)
             deferred.addCallbacks(
                     lambda res: queue.put(True),
