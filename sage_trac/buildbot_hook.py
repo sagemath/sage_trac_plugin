@@ -50,6 +50,8 @@ class BuildbotHook(git_merger.GitMerger):
         self.port = int(self.config.get("buildbot", "port", self.port))
 
     def get_changed_files(self, ancestor, descendant):
+        if ancestor.oid == descendant.oid:
+            return None
         matches = GIT_DIFF_REGEX.finditer(
                 self._git.diff(ancestor, descendant).patch)
         return {file for match in matches for file in match.groups()}
@@ -63,9 +65,12 @@ class BuildbotHook(git_merger.GitMerger):
             try:
                 base, builder, number, status = cursor.next()
             except StopIteration:
+                if self.master.hex != commit:
+                    self._real_get_build(MASTER_BRANCH)
                 return None
         if base != self.master.hex:
             BuildbotHook._drop_table(self)
+            self._real_get_build(MASTER_BRANCH)
             return None
         return builder, number, status
 
@@ -81,51 +86,61 @@ class BuildbotHook(git_merger.GitMerger):
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('SELECT * FROM information_schema.tables WHERE "table_name"=%s', ('build_store',))
-            if not cursor.rowcount:
+            try:
+                cursor.next()
+            except StopIteration:
                 cursor.execute('CREATE TABLE "build_store" ( base text, target text, builder text, number int, status int, PRIMARY KEY ( target ), UNIQUE ( target ) )')
 
     def _drop_table(self):
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('SELECT * FROM information_schema.tables WHERE "table_name"=%s', ('build_store',))
-            if cursor.rowcount:
+            try:
+                cursor.next()
                 cursor.execute('DROP TABLE "build_store"')
+            except StopIteration:
+                pass
 
     def _real_get_build(self, branch, author='', tracid=None):
         try:
-            commit = self.generic_lookup(branch.strip())[1]
+            _, commit = self.generic_lookup(branch.strip())
         except (KeyError, ValueError):
             return None
+        except AttributeError:
+            commit = branch
 
         res = BuildbotHook._get_cache(self, commit)
         if res is not None:
             return res
 
-        merge = self.get_merge(commit)
-
-        if merge in (git_merger.GIT_UPTODATE, git_merger.GIT_FAILED_MERGE):
-            # don't bother trying to build failed merges or old branches
-            return None
-        elif merge == git_merger.GIT_FASTFORWARD:
+        if commit.oid == self.master.oid:
             merge = commit
+        else:
+            merge = self.get_merge(commit)
+
+            if merge in (git_merger.GIT_UPTODATE, git_merger.GIT_FAILED_MERGE):
+                # don't bother trying to build failed merges or old branches
+                return None
+            elif merge == git_merger.GIT_FASTFORWARD:
+                merge = commit
 
         change = {
-                'project': '',
                 'repository': self.repository,
                 'who': author,
                 'files': self.get_changed_files(self.master, merge),
-                'comments': 'From Trac #{tracid} (http://trac.sagemath.org/{tracid})'.format(tracid=str(tracid)),
+                'comments': u'',
                 'branch': branch,
                 'revision': hexify(merge),
-                'category': None,
-                'when': None,
                 'properties': {
-                    'trac_ticket': tracid,
                     'premerge_revision': hexify(commit),
                     },
                 'revlink': self.commit_url(merge), # Maybe link to the tree instead?
                 'src': 'git',
                 }
+
+        if tracid is not None:
+            change['comments'] = u'From Trac #{tracid} (http://trac.sagemath.org/{tracid})'.format(tracid=unicode(tracid))
+            change['properties']['trac_ticket'] = tracid
 
         for key in change:
             if isinstance(change[key], str):
@@ -136,7 +151,9 @@ class BuildbotHook(git_merger.GitMerger):
         def call_addChange(remote):
             self.log.error('sucessfully connected to {}'.format(self.host))
             deferred = remote.callRemote('addChange', change)
-            deferred.addCallbacks(lambda res: queue.put(True), lambda res: queue.put(False))
+            deferred.addCallbacks(
+                    lambda res: queue.put(True),
+                    lambda res: queue.put(False))
             deferred.addBoth(lambda res: remote.broker.transport.loseConnection())
             return deferred
 
@@ -151,7 +168,8 @@ class BuildbotHook(git_merger.GitMerger):
 
         def run_reactor():
             factory = pb.PBClientFactory()
-            deferred = factory.login(credentials.UsernamePassword(self.username, self.password))
+            deferred = factory.login(
+                    credentials.UsernamePassword(self.username, self.password))
 
             reactor.connectTCP(self.host, self.port, factory)
 
@@ -160,7 +178,8 @@ class BuildbotHook(git_merger.GitMerger):
 
             reactor.run()
 
-        # since twisted's reactor can only be run one, do it in another process
+        # since twisted's reactor can only be run once,
+        # do it in another process
         multiprocessing.Process(target=run_reactor).start()
 
         if queue.get():

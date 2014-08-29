@@ -51,7 +51,9 @@ class UserDataStore(Component):
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('SELECT * FROM information_schema.tables WHERE "table_name"=%s', ('user_data_store',))
-            if not cursor.rowcount:
+            try:
+                cursor.next()
+            except StopIteration:
                 cursor.execute('CREATE TABLE "user_data_store" ( "user" text, key text, value text, UNIQUE ( "user", key ) )')
 
 class SshKeysPlugin(Component):

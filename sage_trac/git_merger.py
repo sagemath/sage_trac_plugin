@@ -58,15 +58,20 @@ class GitMerger(GitBase):
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('SELECT * FROM information_schema.tables WHERE "table_name"=%s', ('merge_store',))
-            if not cursor.rowcount:
+            try:
+                cursor.next()
+            except StopIteration:
                 cursor.execute('CREATE TABLE "merge_store" ( base text, target text, tmp text, PRIMARY KEY ( target ), UNIQUE ( target, tmp ) )')
 
     def _drop_table(self):
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('SELECT * FROM information_schema.tables WHERE "table_name"=%s', ('merge_store',))
-            if cursor.rowcount:
+            try:
+                cursor.next()
                 cursor.execute('DROP TABLE "merge_store"')
+            except StopIteration:
+                pass
 
     def _merge(self, commit):
         import tempfile
