@@ -48,6 +48,9 @@ class BuildbotHook(git_merger.GitMerger):
                 self.port = 9989
 
         self.port = int(self.config.get("buildbot", "port", self.port))
+        self.prefix = self.config.get("buildbot", "prefix", "")
+        if self.prefix and self.prefix[-1] != "/":
+            self.prefix += "/"
 
     def get_changed_files(self, ancestor, descendant):
         if ancestor.oid == descendant.oid:
@@ -255,7 +258,8 @@ class BuildbotHook(git_merger.GitMerger):
                     href=urlparse.urlunsplit((
                         'http',
                         self.host,
-                        'builders/{builder}/builds/{number}'.format(
+                        '{prefix}builders/{builder}/builds/{number}'.format(
+                            prefix=self.prefix,
                             builder=builder,
                             number=number,
                             ),
