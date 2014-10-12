@@ -59,12 +59,16 @@ class BuildbotHook(git_merger.GitMerger):
                 self._git.diff(ancestor, descendant).patch)
         return {file for match in matches for file in match.groups()}
 
-    def _get_cache(self, commit):
+    def _get_cache(self, commitortracid):
         BuildbotHook._create_table(self)
-        commit = hexify(commit)
+        commit = hexify(commitortracid)
+        if isinstance(commit, basestring):
+            statement = ('SELECT base, builder, number, status FROM "build_store" WHERE target=%s', (commit,))
+        else:
+            statement = ('SELECT base, builder, number, status FROM "build_store" WHERE tracid=%s', (tracid,))
         with self.env.db_query as db:
             cursor = db.cursor()
-            cursor.execute('SELECT base, builder, number, status FROM "build_store" WHERE target=%s', (commit,))
+            cursor.execute(*statement)
             try:
                 base, builder, number, status = cursor.next()
             except StopIteration:
@@ -77,13 +81,13 @@ class BuildbotHook(git_merger.GitMerger):
             return None
         return builder, number, status
 
-    def _set_cache(self, commit, builder=None, number=None, status=None):
+    def _set_cache(self, commit, builder=None, number=None, status=None, tracid=None):
         BuildbotHook._create_table(self)
         commit = hexify(commit)
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('DELETE FROM "build_store" WHERE target=%s', (commit,))
-            cursor.execute('INSERT INTO "build_store" VALUES (%s, %s, %s, %s, %s)', (self.master.hex, commit, builder, number, status))
+            cursor.execute('INSERT INTO "build_store" VALUES (%s, %s, %s, %s, %s, %s)', (self.master.hex, commit, builder, number, status, tracid))
 
     def _create_table(self):
         with self.env.db_transaction as db:
@@ -92,7 +96,7 @@ class BuildbotHook(git_merger.GitMerger):
             try:
                 cursor.next()
             except StopIteration:
-                cursor.execute('CREATE TABLE "build_store" ( base text, target text, builder text, number int, status int, PRIMARY KEY ( target ), UNIQUE ( target ) )')
+                cursor.execute('CREATE TABLE "build_store" ( base text, target text, builder text, number int, status int, tracid int, PRIMARY KEY ( target ), UNIQUE ( target ) )')
 
     def _drop_table(self):
         with self.env.db_transaction as db:
@@ -134,9 +138,6 @@ class BuildbotHook(git_merger.GitMerger):
                 'comments': u'',
                 'branch': branch,
                 'revision': hexify(merge),
-                'properties': {
-                    'premerge_revision': hexify(commit),
-                    },
                 'revlink': self.commit_url(merge), # Maybe link to the tree instead?
                 'src': 'git',
                 }
@@ -186,26 +187,30 @@ class BuildbotHook(git_merger.GitMerger):
         multiprocessing.Process(target=run_reactor).start()
 
         if queue.get():
-            BuildbotHook._set_cache(self, commit)
+            BuildbotHook._set_cache(self, commit, tracid=tracid)
         else:
             return None
         return self._real_get_build(branch, author, tracid)
 
     def _get_build(self, req, ticket, extra_checks):
-        if req.args.get('preview') is not None:
-            return ()
+        def get_build():
+            if req.args.get('preview') is not None:
+                return
 
-        if extra_checks:
-            if req.args.get('id') is None:
-                return ()
-            if ticket['status'] not in ('needs_review', 'positive_review'):
-                return ()
+            if extra_checks:
+                if req.args.get('id') is None:
+                    return
+                if ticket['status'] == 'needs_work':
+                    return self._get_cache(req.args.get('id'))
+                if ticket['status'] not in ('needs_review', 'positive_review'):
+                    return
 
-        branch = ticket['branch']
-        if not branch:
-            return ()
+            branch = ticket['branch']
+            if not branch:
+                return
 
-        build = self._real_get_build(branch, req.authname, req.args.get('id'))
+            return self._real_get_build(branch, req.authname, req.args.get('id'))
+        build = get_build()
         if build is None:
             return ()
         return build
@@ -215,10 +220,10 @@ class BuildbotHook(git_merger.GitMerger):
         req.perm(ticket.resource).require('TICKET_VIEW')
         return list(self._get_build(req, ticket, False))
 
-    def set_build(self, req, sha, builder, number, status):
+    def set_build(self, req, sha, builder=None, number=None, status=None, tracid=None):
         if req.authname != 'git':
             raise TracError("only buildbot has permissions to set builds")
-        BuildbotHook._set_cache(self, sha, builder, number, status)
+        BuildbotHook._set_cache(self, sha, builder, number, status, tracid)
 
     # ITemplateStreamFilter methods
     def filter_stream(self, req, method, filename, stream, data):
@@ -228,7 +233,7 @@ class BuildbotHook(git_merger.GitMerger):
 
         build = self._get_build(req, ticket, True)
 
-        if not build:
+        if build is None:
             return stream
 
         builder, number, rc = build
@@ -281,5 +286,5 @@ class BuildbotHook(git_merger.GitMerger):
         return 'buildbot'
 
     def xmlrpc_methods(self):
-        yield (None, ((None,str,str,int,int),), self.set_build)
+        yield (None, ((None,str,str,int,int,int),), self.set_build)
         yield (None, ((list,int),), self.get_build)
