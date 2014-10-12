@@ -142,7 +142,10 @@ class GitMerger(GitBase):
             commit = self.generic_lookup(ticket['branch'].strip())[1]
         except (KeyError, ValueError):
             return ''
-        return self.get_merge(commit).hex
+        merge = self.get_merge(commit)
+        if merge in GIT_SPECIAL_MERGES:
+            return merge
+        return merge.hex
 
     # IXMLRPCHandler methods
     def xmlrpc_namespace(self):
