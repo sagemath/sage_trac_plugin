@@ -35,8 +35,6 @@ class GitBase(Component):
         if not self.cgit_host:
             raise TracError("cgit_host is not set in the config file")
         self.cgit_repo = self.config.get("trac", "cgit_repository", "")
-        if not self.cgit_repo:
-            raise TracError("cgit_repository is not set in the config file")
 
     @property
     def _git(self):
@@ -66,7 +64,7 @@ class GitBase(Component):
         return urlparse.urlunsplit((
             'http',
             self.cgit_host,
-            self.cgit_repo+'/commit/',
+            os.path.join(self.cgit_repo,'commit/'),
             urllib.urlencode({'id': commit}),
             '',
             ))
@@ -84,7 +82,7 @@ class GitBase(Component):
         return urlparse.urlunsplit((
             'http',
             self.cgit_host,
-            self.cgit_repo+'/log/',
+            os.path.join(self.cgit_repo,'log/'),
             query,
             '',
             ))
@@ -98,7 +96,7 @@ class GitBase(Component):
         return urlparse.urlunsplit((
             'http',
             self.cgit_host,
-            self.cgit_repo+'/diff/',
+            os.path.join(self.cgit_repo,'diff/'),
             query,
             '',
             ))

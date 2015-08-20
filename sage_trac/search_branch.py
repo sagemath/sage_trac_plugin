@@ -6,8 +6,8 @@ Only exact matches are returned
 
 from datetime import datetime
 from trac.core import Component, implements
-from trac.search import ISearchSource, search_to_sql
-from trac.util.datefmt import utc, from_utimestamp
+from trac.search import ISearchSource
+from trac.util.datefmt import from_utimestamp
 from tracrpc.api import IXMLRPCHandler
 
 class BranchSearchModule(Component):
