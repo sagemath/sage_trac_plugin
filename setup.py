@@ -12,6 +12,8 @@ setup(
                 'templates/prefs_ssh_keys.html',
                 ],
             },
+        install_requires=['pygit2', 'TracXMLRPC'],
+        dependency_links=['https://trac-hacks.org/svn/xmlrpcplugin/trunk#egg=TracXMLRPC'],
         entry_points={
             'trac.plugins': [
                 'sage_trac = sage_trac',
