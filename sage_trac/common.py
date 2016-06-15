@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from trac.core import Component, TracError
-from trac.config import Option
+from trac.config import Option, PathOption
 
 import pygit2
 import os
@@ -28,8 +28,8 @@ def hexify(*args):
 
 class GitBase(Component):
 
-    git_dir = Option('trac', 'repository_dir', '',
-                     doc='path to bare git repositories')
+    git_dir = PathOption('trac', 'repository_dir', '',
+                         doc='path to bare git repositories')
 
 
     cgit_protocol = Option('trac', 'cgit_protocol', 'https',
