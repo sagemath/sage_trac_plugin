@@ -1,4 +1,5 @@
 from trac.core import Component, implements, TracError
+from trac.config import Option, PathOption
 from trac.web.chrome import ITemplateProvider, add_notice
 from trac.util.translation import gettext
 from trac.prefs import IPreferencePanelProvider
@@ -61,10 +62,55 @@ class UserDataStore(Component):
                 cursor.execute('CREATE TABLE "user_data_store" ( "user" text, key text, value text, UNIQUE ( "user", key ) )')
 
 class SshKeysPlugin(Component):
-    implements(IPreferencePanelProvider, IAdminCommandProvider, IXMLRPCHandler, ITemplateProvider)
+    implements(IPreferencePanelProvider, IAdminCommandProvider,
+               IXMLRPCHandler, ITemplateProvider)
+
+    gitolite_user = Option('sage_trac', 'gitolite_user', 'git',
+                           doc='the user with which to log into the gitolite '
+                               'server (default: git)')
+
+    gitolite_host = Option('sage_trac', 'gitolite_host', '',
+                           doc='the hostname of the gitolite server')
+
+    gitolite_admin = PathOption('sage_trac', 'gitolite_admin',
+                                os.path.join(os.pardir, 'gitolite-admin'),
+                                doc='directory for clone of the '
+                                    'gitolite-admin repository, used to '
+                                    'manage SSH keys (default: '
+                                    'gitolite-admin, directly under the '
+                                    'trac environment path')
 
     def __init__(self):
+        Component.__init__(self)
         self._user_data_store = UserDataStore(self.compmgr)
+
+
+        if not self.gitolite_host:
+            raise TracError(
+                'The [sage_trac]/gitolite_host option must be set in '
+                'trac.ini')
+
+        if not os.path.exists(self.gitolite_admin):
+            clone_path = '{user}@{host}:gitolite-admin'.format(
+                    user=self.gitolite_user, host=self.gitolite_host)
+            ret, out = self._git('clone', clone_path, self.gitolite_admin,
+                                 chdir=False)
+            if ret != 0:
+                raise TracError(
+                    'Failed to clone gitolite-admin repository: '
+                    '{0}'.format(out))
+        else:
+            # Clean up any uncommitted files or changes; this suggests
+            # the repository was left in an inconsistent state (e.g.
+            # on process crash); then fetch and update from origin
+            for cmds in [('clean', '-dfx'), ('fetch', 'origin'),
+                         ('reset', '--hard', 'origin/master')]:
+                ret, out = self._git(*cmds)
+                if ret != 0:
+                    raise TracError(
+                        'Error cleaning up / updating the gitolite-admin '
+                        'repository: {0}; you may have to manually clean up '
+                        'or re-clone the repository'.format(out))
 
     # IPreferencePanelProvider methods
     def get_preference_panels(self, req):
@@ -105,31 +151,75 @@ class SshKeysPlugin(Component):
     def _do_dump_key(self, user):
         printout(self._getkeys(user))
 
+    def _git(self, *args, **kwargs):
+        chdir = kwargs.pop('chdir', True)
+        prev_dir = os.getcwd()
+        if chdir:
+            os.chdir(self.gitolite_admin)
+        try:
+            out = subprocess.check_output(('git',) + args,
+                                          stderr=subprocess.STDOUT)
+            code = 0
+        except subprocess.CalledProcessError as exc:
+            out, code = exc.output, exc.returncode
+        finally:
+            if chdir:
+                os.chdir(prev_dir)
+
+        return code, out.decode('latin1')
+
     # Gitolite exporting
     def _export_to_gitolite(self, user, keys):
         def _mkdir(path):
             if not os.path.isdir(path):
                 _mkdir(os.path.dirname(path))
                 os.mkdir(path)
-        for i,key in enumerate(keys):
-            d = hex(i)[2:]
-            while len(d) < 2:
-                d = '0'+d
-            d = os.path.join(GITOLITE_KEYDIR, d)
-            _mkdir(d)
-            f = open(os.path.join(d, user+'.pub'), 'w')
-            f.write(key)
-            f.close()
-        for i in range(len(keys), len(self._getkeys(user))):
-            d = hex(i)[2:]
-            while len(d) < 2:
-                d = '0'+d
-            d = os.path.join(GITOLITE_KEYDIR, d)
+
+        def get_keyname(idx):
+            dirno = '{0:>02}'.format(hex(idx)[2:])
+            keydir = os.path.join(self.gitolite_admin, 'keydir', dirno)
+            return os.path.join(keydir, user + '.pub')
+
+        added_keys = []
+        deleted_keys = []
+
+        for idx, key in enumerate(keys):
+            keyname = get_keyname(idx)
+            _mkdir(os.path.dirname(keyname))
+            with open(keyname, 'w') as f:
+                f.write(key)
+            added_keys.append(keyname)
+
+        for idx in range(len(keys), len(self._getkeys(user))):
+            keyname = get_keyname(idx)
             try:
-                os.unlink(os.path.join(d, user+'.pub'))
+                os.unlink(keyname)
             except OSError:
                 pass
-        subprocess.call(GITOLITE_UPDATE)
+            else:
+                deleted_keys.append(keyname)
+
+        cmds = [('pull', '-s', 'ours', 'origin', 'master')]
+
+        if added_keys:
+            cmds.append(('add',) + tuple(added_keys))
+
+        if deleted_keys:
+            cmds.append(('rm',) + tuple(deleted_keys))
+
+        cmds.extend([
+            ('commit', '-m', 'trac: updating user keys'),
+            ('push', 'origin', 'master')
+        ])
+
+        for cmd in cmds:
+            ret, out = self._git(*cmd)
+            if ret != 0:
+                # Error occurred; attempt rollback
+                self._git('reset', '--hard', 'origin/master')
+                raise TracError('A git error occurred while saving your '
+                                'updated SSH keys: {0}; the attempted '
+                                'command was {1}'.format(out, cmd))
 
     # general functionality
     def _listusers(self):
