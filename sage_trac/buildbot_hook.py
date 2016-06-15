@@ -6,9 +6,9 @@ from trac.ticket.model import Ticket
 from trac.web.api import ITemplateStreamFilter
 from tracrpc.api import IXMLRPCHandler
 
-from common import *
+from .common import *
 
-import git_merger
+from . import git_merger
 
 from genshi.builder import tag
 from genshi.filters import Transformer
