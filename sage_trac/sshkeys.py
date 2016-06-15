@@ -22,8 +22,9 @@ class UserDataStore(Component):
         self._create_table()
         with self.env.db_transaction as db:
             cursor = db.cursor()
+            cursor.execute('DELETE FROM "user_data_store" WHERE "user"=%s', (user,))
+
             for key, value in dictionary.iteritems():
-                cursor.execute('DELETE FROM "user_data_store" WHERE "user"=%s', (user,))
                 cursor.execute('INSERT INTO "user_data_store" VALUES (%s, %s, %s)', (user, key, value))
 
     def get_data(self, user):
