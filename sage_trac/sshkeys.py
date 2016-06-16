@@ -11,6 +11,8 @@ from tracrpc.api import IXMLRPCHandler
 import os
 import subprocess
 
+from threading import Lock
+from fasteners import InterProcessLock as IPLock, locked
 
 from .common import *
 
@@ -91,7 +93,29 @@ class SshKeysPlugin(Component):
                 'The [sage_trac]/gitolite_host option must be set in '
                 'trac.ini')
 
+        lockfilename = '.{0}.lock'.format(
+                os.path.basename(self.gitolite_admin))
+
+        lockfile = os.path.join(os.path.dirname(self.gitolite_admin),
+                                lockfilename)
+
+        self._locks = [IPLock(lockfile), Lock()]
+        self._init_gitolite_admin()
+
+    @locked(lock='_locks')
+    def _init_gitolite_admin(self):
+        """
+        Initilizes (by cloning) or cleans up (if it already exists) the
+        local clone of the gitolite-admin repository in which SSH keys
+        are stored.
+
+        This is locked between processes so when starting Trac up in a
+        multiprocess environment only one process touches the git repo
+        at a time.
+        """
+
         if not os.path.exists(self.gitolite_admin):
+            # Initialize new clone of the gitolite-admin repo
             clone_path = '{user}@{host}:gitolite-admin'.format(
                     user=self.gitolite_user, host=self.gitolite_host)
             ret, out = self._git('clone', clone_path, self.gitolite_admin,
@@ -100,18 +124,20 @@ class SshKeysPlugin(Component):
                 raise TracError(
                     'Failed to clone gitolite-admin repository: '
                     '{0}'.format(out))
-        else:
-            # Clean up any uncommitted files or changes; this suggests
-            # the repository was left in an inconsistent state (e.g.
-            # on process crash); then fetch and update from origin
-            for cmds in [('clean', '-dfx'), ('fetch', 'origin'),
-                         ('reset', '--hard', 'origin/master')]:
-                ret, out = self._git(*cmds)
-                if ret != 0:
-                    raise TracError(
-                        'Error cleaning up / updating the gitolite-admin '
-                        'repository: {0}; you may have to manually clean up '
-                        'or re-clone the repository'.format(out))
+
+            return
+
+        # Clean up any uncommitted files or changes; this suggests
+        # the repository was left in an inconsistent state (e.g.
+        # on process crash); then fetch and update from origin
+        for cmds in [('clean', '-dfx'), ('fetch', 'origin'),
+                     ('reset', '--hard', 'origin/master')]:
+            ret, out = self._git(*cmds)
+            if ret != 0:
+                raise TracError(
+                    'Error cleaning up / updating the gitolite-admin '
+                    'repository: {0}; you may have to manually clean up '
+                    'or re-clone the repository'.format(out))
 
     # IPreferencePanelProvider methods
     def get_preference_panels(self, req):
@@ -170,6 +196,7 @@ class SshKeysPlugin(Component):
         return code, out.decode('latin1')
 
     # Gitolite exporting
+    @locked(lock='_locks')
     def _export_to_gitolite(self, user, keys):
         def _mkdir(path):
             if not os.path.isdir(path):
