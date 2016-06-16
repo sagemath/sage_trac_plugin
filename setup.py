@@ -1,10 +1,11 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 from setuptools import setup, find_packages
 
 setup(
         name='sage_trac',
         version='0.2',
+        url='https://github.com/sagemath/sage_trac_plugin',
         packages=find_packages(),
         zip_safe=True,
         package_data={
@@ -12,6 +13,8 @@ setup(
                 'templates/prefs_ssh_keys.html',
                 ],
             },
+        install_requires=['pygit2', 'TracXMLRPC'],
+        dependency_links=['https://trac-hacks.org/svn/xmlrpcplugin/trunk#egg=TracXMLRPC'],
         entry_points={
             'trac.plugins': [
                 'sage_trac = sage_trac',
