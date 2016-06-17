@@ -3,7 +3,7 @@
 import subprocess
 import os.path
 
-from common import *
+from .common import *
 
 from trac.core import implements
 from trac.ticket.model import Ticket

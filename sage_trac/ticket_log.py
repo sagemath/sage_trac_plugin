@@ -5,7 +5,7 @@ from trac.ticket.api import ITicketManipulator
 
 import copy
 
-from common import *
+from .common import *
 
 MAX_NEW_COMMITS = 10
 

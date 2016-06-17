@@ -6,9 +6,9 @@ from genshi.filters import Transformer
 from trac.core import *
 from trac.web.api import ITemplateStreamFilter
 
-from common import *
+from .common import *
 
-import git_merger
+from . import git_merger
 
 FILTER = Transformer('//td[@headers="h_branch"]')
 FILTER_TEXT = Transformer('//td[@headers="h_branch"]/text()')

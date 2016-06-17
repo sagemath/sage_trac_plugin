@@ -4,10 +4,14 @@ from trac.util.translation import gettext
 from trac.prefs import IPreferencePanelProvider
 from trac.admin.api import IAdminCommandProvider
 from trac.util.text import printout
-from tracrpc.api import IXMLRPCHandler
-import subprocess, os
 
-from common import *
+from tracrpc.api import IXMLRPCHandler
+
+import os
+import subprocess
+
+
+from .common import *
 
 class UserDataStore(Component):
     def save_data(self, user, dictionary):
