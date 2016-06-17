@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
 
 from trac.core import *
-from trac.config import ListOption
+from trac.config import ListOption, IntOption
 from trac.ticket.api import ITicketManipulator
 
 from .common import GitBase
 
-
-MAX_NEW_COMMITS = 10
 
 class TicketLog(GitBase):
     implements(ITicketManipulator)
@@ -18,6 +16,14 @@ class TicketLog(GitBase):
                                      'branch in [trac]/master_branch by '
                                      'default, as well as "master" if '
                                      '[trac]/master_branch is different')
+
+    max_new_commits = IntOption('sage_trac', 'max_new_commits', 10,
+                                doc='maximum number of commits to display '
+                                    'in the ticket log when new commits are '
+                                    'pushed to an associated branch; in '
+                                    'particular this limit prevents '
+                                    'display of huge lists of commits from '
+                                    'botched merges (default: 10)')
 
     def _valid_commit(self, val):
         if not isinstance(val, basestring):
@@ -88,12 +94,13 @@ class TicketLog(GitBase):
             if old_commit is not None:
                 ignore.add(old_commit)
             try:
-                table = self.log_table(commit, limit=MAX_NEW_COMMITS+1,ignore=ignore)
+                table = self.log_table(commit, limit=self.max_new_commits+1,
+                                       ignore=ignore)
             except (pygit2.GitError, KeyError):
                 return []
-            if len(table) > MAX_NEW_COMMITS:
-                header = u'Last {0} new commits:'.format(MAX_NEW_COMMITS)
-                table = table[:MAX_NEW_COMMITS]
+            if len(table) > self.max_new_commits:
+                header = u'Last {0} new commits:'.format(self.max_new_commits)
+                table = table[:self.max_new_commits]
             else:
                 header = u'New commits:'
             if table:
