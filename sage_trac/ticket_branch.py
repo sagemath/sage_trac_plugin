@@ -4,19 +4,20 @@ from genshi.builder import tag
 from genshi.filters import Transformer
 
 from trac.core import *
+from trac.config import Option
 from trac.web.api import ITemplateStreamFilter
 
-from .common import *
+from .common import GitBase, _signature_re
 
 from . import git_merger
 
 FILTER = Transformer('//td[@headers="h_branch"]')
 FILTER_TEXT = Transformer('//td[@headers="h_branch"]/text()')
 
-RELEASE_MANAGER_SIGNATURE = pygit2.Signature('Release Manager', 'release@sagemath.org', 1391787038L)
 
 def signature_eq(sig1, sig2):
     return sig1.name == sig2.name and sig1.email == sig2.email
+
 
 class TicketBranch(git_merger.GitMerger):
     """
@@ -24,6 +25,24 @@ class TicketBranch(git_merger.GitMerger):
     applies changes to the ``branch`` field to the git repository.
     """
     implements(ITemplateStreamFilter)
+
+    release_manager_signature = Option(
+            'sage_trac', 'release_manager_signature',
+            'Release Manager <release@sagemath.org>',
+            doc='signature to use on commits (especially merges) made '
+                'through action of the project release manager (default: '
+                '"Release Manager <release@sagemath.org>)')
+
+    def __init__(self, *args, **kwargs):
+        git_merger.GitMerger.__init__(self, *args, **kwargs)
+
+        m = _signature_re.match(self.release_manager_signature)
+        if not m:
+            raise TracError(
+                '[sage_trac]/release_manager_signature in trac.ini must be '
+                'in the "Name <email@example.com>" format')
+
+        self._release_signature = pygit2.Signature(m.group(1), m.group(2))
 
     def filter_stream(self, req, method, filename, stream, data):
         """
@@ -106,7 +125,7 @@ class TicketBranch(git_merger.GitMerger):
         walker.hide(branch.oid)
         for commit in walker:
             if (branch.oid in (p.oid for p in commit.parents) and
-                    signature_eq(commit.author, RELEASE_MANAGER_SIGNATURE)):
+                    signature_eq(commit.author, self._release_signature)):
                 base = None
                 for p in commit.parents:
                     if p.oid == branch.oid:

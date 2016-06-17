@@ -3,9 +3,10 @@
 import subprocess
 import os.path
 
-from .common import *
+from .common import GitBase, _signature_re
 
-from trac.core import implements
+from trac.core import implements, TracError
+from trac.config import Option
 from trac.ticket.model import Ticket
 from tracrpc.api import IXMLRPCHandler
 
@@ -13,10 +14,26 @@ GIT_SPECIAL_MERGES = ('GIT_FASTFORWARD', 'GIT_UPTODATE', 'GIT_FAILED_MERGE')
 for _merge in GIT_SPECIAL_MERGES:
     globals()[_merge] = _merge
 
-TRAC_SIGNATURE = pygit2.Signature('trac', 'trac@sagemath.org')
 
 class GitMerger(GitBase):
     implements(IXMLRPCHandler)
+
+    trac_signature = Option(
+            'sage_trac', 'trac_signature', 'trac <trac@sagemath.org>',
+            doc='`Name <email@example.com>` format signature to use '
+                'for commits made to the Git repository by the Trac '
+                'plugin (default: trac <trac@sagemath.org>)')
+
+    def __init__(self, *args, **kwargs):
+        GitBase.__init__(self, *args, **kwargs)
+
+        m = _signature_re.match(self.trac_signature)
+        if not m:
+            raise TracError(
+                '[sage_trac]/trac_signature in trac.ini must be in the '
+                '"Name <email@example.com>" format')
+
+        self._signature = pygit2.Signature(m.group(1), m.group(2))
 
     def get_merge(self, commit):
         ret = GitMerger._get_cache(self, commit)
@@ -124,8 +141,8 @@ class GitMerger(GitBase):
                 ret = self._git.get(
                         self._git.create_commit(
                             None, # don't update any refs
-                            TRAC_SIGNATURE, # author
-                            TRAC_SIGNATURE, # committer
+                            self._signature, # author
+                            seff._signature, # committer
                             'Temporary merge of %s into %s'%(commit.hex, repo.head.get_object().hex), # merge message
                             merge_tree, # commit's tree
                             [repo.head.get_object().oid, commit.oid], # parents

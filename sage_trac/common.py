@@ -4,9 +4,14 @@ from trac.core import Component, TracError
 from trac.config import Option, PathOption
 
 import pygit2
+import re
 import os
 import urllib
 import urlparse
+
+
+# Simple regexp for "Name <email>" signatures
+_signature_re = re.compile(r'\s*(.*\S)\s*<(.+@.+)>\s*$')
 
 
 def hexify(*args):
