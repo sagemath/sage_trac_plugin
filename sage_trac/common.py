@@ -8,12 +8,6 @@ import os
 import urllib
 import urlparse
 
-MASTER_BRANCH = u'develop'
-MASTER_BRANCHES = {u'develop', u'master'}
-
-WWW_DATA_HOME = '/home/www-data'
-GITOLITE_KEYDIR = os.path.join(WWW_DATA_HOME, 'gitolite', 'keydir')
-GITOLITE_UPDATE = os.path.join(WWW_DATA_HOME, 'bin', 'gitolite-update')
 
 def hexify(*args):
     res = []
@@ -27,6 +21,10 @@ def hexify(*args):
     return res
 
 class GitBase(Component):
+    master_branch = Option('trac', 'master_branch', 'develop',
+                           doc='the mainline development branch of the '
+                               'repository (by default "develop" for sage ',
+                               'for historical reasons)')
 
     git_dir = PathOption('trac', 'repository_dir', '',
                          doc='path to bare git repositories')
@@ -80,7 +78,7 @@ class GitBase(Component):
 
     @property
     def master(self):
-        return self._git.lookup_branch(MASTER_BRANCH).get_object()
+        return self._git.lookup_branch(self.master_branch).get_object()
 
     def generic_lookup(self, ref_or_sha):
         for s in ('refs/heads/', 'refs/tags/'):

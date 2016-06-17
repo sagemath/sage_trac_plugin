@@ -1,16 +1,23 @@
 # -*- coding: utf-8 -*-
 
 from trac.core import *
+from trac.config import ListOption
 from trac.ticket.api import ITicketManipulator
 
-import copy
+from .common import GitBase
 
-from .common import *
 
 MAX_NEW_COMMITS = 10
 
 class TicketLog(GitBase):
     implements(ITicketManipulator)
+
+    ignore_branches = ListOption('sage_trac', 'ignore_branches_in_log', [],
+                                 doc='branches to ignore when displaying the '
+                                     'commit log in tickets; includes the '
+                                     'branch in [trac]/master_branch by '
+                                     'default, as well as "master" if '
+                                     '[trac]/master_branch is different')
 
     def _valid_commit(self, val):
         if not isinstance(val, basestring):
@@ -75,7 +82,9 @@ class TicketLog(GitBase):
                 req.args.get('id') is not None and
                 commit and
                 commit != old_commit):
-            ignore = copy.copy(MASTER_BRANCHES)
+            ignore = set(self.ignore_branches)
+            ignore.add(self.master_branch)
+            ignore.add('master')
             if old_commit is not None:
                 ignore.add(old_commit)
             try:
