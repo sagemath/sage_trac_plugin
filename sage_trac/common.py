@@ -26,30 +26,30 @@ def hexify(*args):
     return res
 
 class GitBase(Component):
-    master_branch = Option('trac', 'master_branch', 'develop',
+    master_branch = Option('sage_trac', 'master_branch', 'develop',
                            doc='the mainline development branch of the '
                                'repository (by default "develop" for sage ',
                                'for historical reasons)')
 
-    git_dir = PathOption('trac', 'repository_dir', '',
+    git_dir = PathOption('sage_trac', 'repository_dir', '',
                          doc='path to bare git repositories')
 
 
-    cgit_protocol = Option('trac', 'cgit_protocol', 'https',
+    cgit_protocol = Option('sage_trac', 'cgit_protocol', 'https',
                            doc='protocol to use when linking to the cgit '
                                'server (default: https)')
 
-    cgit_host = Option('trac', 'cgit_host', '',
+    cgit_host = Option('sage_trac', 'cgit_host', '',
                        doc='hostname of the cgit server to link to for '
                            'repository viewing')
 
-    cgit_url = Option('trac', 'cgit_url', '',
+    cgit_url = Option('sage_trac', 'cgit_url', '',
                       doc='full URL including protocol, hostname, and '
                           'optional server path of the cgit server to '
                           'link to for repository viewing; this option '
                           'supersedes cgit_protocol and cgit_host')
 
-    cgit_repo = Option('trac', 'cgit_repository', '',
+    cgit_repo = Option('sage_trac', 'cgit_repository', '',
                        doc="name of the project's repository under cgit")
 
     def __init__(self, *args, **kwds):
