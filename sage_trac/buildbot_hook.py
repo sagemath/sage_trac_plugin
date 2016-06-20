@@ -6,7 +6,7 @@ from trac.ticket.model import Ticket
 from trac.web.api import ITemplateStreamFilter
 from tracrpc.api import IXMLRPCHandler
 
-from .common import *
+from .common import GitBase, hexify
 
 from . import git_merger
 
@@ -73,11 +73,11 @@ class BuildbotHook(git_merger.GitMerger):
                 base, builder, number, status = cursor.next()
             except StopIteration:
                 if self.master.hex != commit:
-                    self._real_get_build(MASTER_BRANCH)
+                    self._real_get_build(self.master_branch)
                 return None
         if base != self.master.hex:
             BuildbotHook._drop_table(self)
-            self._real_get_build(MASTER_BRANCH)
+            self._real_get_build(self.master_branch)
             return None
         return builder, number, status
 
@@ -143,7 +143,9 @@ class BuildbotHook(git_merger.GitMerger):
                 }
 
         if tracid is not None:
-            change['comments'] = u'From Trac #{tracid} (http://trac.sagemath.org/{tracid})'.format(tracid=unicode(tracid))
+            change['comments'] = \
+                    u'From Trac #{tracid} ({base}/{tracid})'.format(
+                            base=self.env.base_url, tracid=unicode(tracid))
             change['properties']['trac_ticket'] = tracid
 
         for key in change:
@@ -233,7 +235,7 @@ class BuildbotHook(git_merger.GitMerger):
 
         build = self._get_build(req, ticket, True)
 
-        if build is None:
+        if not build:
             return stream
 
         builder, number, rc = build

@@ -14,7 +14,6 @@ import subprocess
 from threading import Lock
 from fasteners import InterProcessLock as IPLock, locked
 
-from .common import *
 
 class UserDataStore(Component):
     def save_data(self, user, dictionary):
