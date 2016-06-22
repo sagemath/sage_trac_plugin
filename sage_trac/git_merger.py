@@ -145,7 +145,7 @@ class GitMerger(GitBase):
                         self._git.create_commit(
                             None, # don't update any refs
                             self._signature, # author
-                            seff._signature, # committer
+                            self._signature, # committer
                             'Temporary merge of %s into %s'%(commit.hex, repo.head.get_object().hex), # merge message
                             merge_tree, # commit's tree
                             [repo.head.get_object().oid, commit.oid], # parents
