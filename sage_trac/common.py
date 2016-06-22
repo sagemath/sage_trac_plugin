@@ -28,7 +28,7 @@ def hexify(*args):
 class GitBase(Component):
     master_branch = Option('sage_trac', 'master_branch', 'develop',
                            doc='the mainline development branch of the '
-                               'repository (by default "develop" for sage ',
+                               'repository (by default "develop" for sage '
                                'for historical reasons)')
 
     git_dir = PathOption('sage_trac', 'repository_dir', '',
@@ -63,7 +63,7 @@ class GitBase(Component):
                             'trac.ini and may conflict; define only one or '
                             'the other')
         elif not (self.cgit_url or self.cgit_host):
-            raise TracError('one of cgit_url or cgit_hot must be set in '
+            raise TracError('one of cgit_url or cgit_host must be set in '
                             'trac.ini')
         elif self.cgit_host:
             self._cgit_host = (self.cgit_protocol, self.cgit_host)

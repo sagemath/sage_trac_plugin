@@ -6,6 +6,7 @@ from trac.ticket.api import ITicketManipulator
 
 from .common import GitBase
 
+import pygit2
 
 class TicketLog(GitBase):
     implements(ITicketManipulator)

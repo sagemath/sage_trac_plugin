@@ -11,6 +11,8 @@ from .common import GitBase, _signature_re
 
 from . import git_merger
 
+import pygit2
+
 FILTER = Transformer('//td[@headers="h_branch"]')
 FILTER_TEXT = Transformer('//td[@headers="h_branch"]/text()')
 

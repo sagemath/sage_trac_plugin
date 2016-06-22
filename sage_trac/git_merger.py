@@ -3,6 +3,8 @@
 import subprocess
 import os.path
 
+import pygit2
+
 from .common import GitBase, _signature_re
 
 from trac.core import implements, TracError
@@ -96,7 +98,8 @@ class GitMerger(GitBase):
 
         try:
             # libgit2/pygit2 are ridiculously slow when cloning local paths
-            subprocess.call(['git', 'clone', self.git_dir, tmpdir, '--branch=%s'%MASTER_BRANCH])
+            subprocess.call(['git', 'clone', self.git_dir, tmpdir,
+                '--branch=%s'% self.master_branch])
 
             repo = pygit2.Repository(tmpdir)
             merge, _ = repo.merge_analysis(commit.oid)
