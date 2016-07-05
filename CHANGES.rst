@@ -1,7 +1,8 @@
 0.3.2 (unreleased)
 ==================
 
-* Nothing changed yet.
+* Improved the SSH key plugin to use the Trac environment API for creating/
+  upgrading the database table use by the plugin.
 
 
 0.3.1 (2016-07-05)
