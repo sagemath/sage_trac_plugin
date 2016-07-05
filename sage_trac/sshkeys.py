@@ -3,19 +3,23 @@ from trac.env import IEnvironmentSetupParticipant
 from trac.config import Option, PathOption
 from trac.db.api import DatabaseManager
 from trac.db.schema import Table, Column
-from trac.web.chrome import ITemplateProvider, add_notice
+from trac.web.chrome import ITemplateProvider, add_notice, add_warning
 from trac.util.translation import gettext
 from trac.prefs import IPreferencePanelProvider
 from trac.admin.api import IAdminCommandProvider
 from trac.util.text import printout
+from trac.util.html import escape
 
 from tracrpc.api import IXMLRPCHandler
+
+from genshi import Markup
 
 import os
 import subprocess
 
 from threading import Lock
 from fasteners import InterProcessLock as IPLock, locked
+from sshpubkeys import SSHKey, InvalidKeyException
 
 
 class UserDataStore(Component):
@@ -178,8 +182,17 @@ class SshKeysPlugin(Component):
 
     def render_preference_panel(self, req, panel):
         if req.method == 'POST':
-            new_ssh_keys = set(key.strip() for key in req.args.get('ssh_keys').splitlines())
+            seen = set()
+            ssh_keys = req.args.get('ssh_keys').strip().splitlines()
+            new_ssh_keys = [k.strip() for k in ssh_keys
+                            if k.strip() and not (k in seen or seen.add(k))]
+
             if new_ssh_keys:
+                self.validatekeys(req, new_ssh_keys)
+
+            if new_ssh_keys:
+                # It's possible validatekeys could have removed all keys from
+                # new_ssh_keys
                 self.setkeys(req, new_ssh_keys)
                 add_notice(req, 'Your ssh key has been saved.')
             req.redirect(req.href.prefs(panel or None))
@@ -268,10 +281,19 @@ class SshKeysPlugin(Component):
         if deleted_keys:
             cmds.append(('rm',) + tuple(deleted_keys))
 
-        cmds.extend([
-            ('commit', '-m', 'trac: updating user keys'),
-            ('push', 'origin', 'master')
-        ])
+        ret, out = self._git('status', '--porcelain')
+        if ret != 0:
+            raise TracError("An unexpected git error occurred: "
+                            "{0}".format(out))
+
+        if out:
+            # If git status did *not* produce output then nothing
+            # changed in the repository (i.e. no keys changed) so there
+            # is nothing to commit or push
+            cmds.extend([
+                ('commit', '-m', 'trac: updating user keys'),
+                ('push', 'origin', 'master')
+            ])
 
         for cmd in cmds:
             ret, out = self._git(*cmd)
@@ -304,6 +326,39 @@ class SshKeysPlugin(Component):
 
     def getkeys(self, req):
         return self._getkeys(req.authname)
+
+    def validatekeys(self, req, keys):
+        """
+        Validate each submitted SSH key.
+
+        Any invalid keys are removed from the ``keys`` list.  Note: The list is
+        modified in-place.  Warnings are displayed to the user for each invalid
+        key submitted.
+        """
+
+        def wrap_key(key):
+            return '<p style="word-wrap: break-word; margin: 1em 0">{0}</p>'.format(
+                    escape(key))
+
+        for idx, key in enumerate(keys[:]):
+            msg = None
+
+            try:
+                ssh = SSHKey(key)
+            except NotImplementedError:
+                msg = ('Unknown key type encountered in key #{0}:'
+                       '{1}'
+                       'Currently ssh-rsa, ssh-dss (DSA), ssh-ed25519 and '
+                       'ecdsa keys with NIST curves are supported.')
+            except InvalidKeyException:
+                msg = ('Malformatted SSH key encountered in key #{0}:'
+                       '{1}'
+                       'Make sure you copy-and-pasted it correctly and that '
+                       'there is no spurious whitespace in the key.')
+
+            if msg:
+                add_warning(req, Markup(msg.format(idx + 1, wrap_key(key))))
+                keys.remove(key)
 
     def setkeys(self, req, keys):
         if req.authname == 'anonymous':

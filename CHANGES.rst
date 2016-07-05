@@ -4,6 +4,10 @@
 * Improved the SSH key plugin to use the Trac environment API for creating/
   upgrading the database table use by the plugin.
 
+* Added validation for SSH keys entered by users--invalid keys will no longer
+  be saved, either in the Trac database or in gitolite, and the user will be
+  properly warned.
+
 
 0.3.1 (2016-07-05)
 ==================

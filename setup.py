@@ -13,7 +13,7 @@ setup(
                 'templates/prefs_ssh_keys.html',
                 ],
             },
-        install_requires=['pygit2', 'TracXMLRPC', 'fasteners'],
+        install_requires=['pygit2', 'TracXMLRPC', 'fasteners', 'sshpubkeys'],
         dependency_links=['https://trac-hacks.org/svn/xmlrpcplugin/trunk#egg=TracXMLRPC'],
         entry_points={
             'trac.plugins': [
