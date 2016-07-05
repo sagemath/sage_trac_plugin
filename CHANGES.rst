@@ -1,3 +1,12 @@
+0.3.1 (2016-07-05)
+==================
+
+* Use ``recursive`` merge strategy with ``ours`` option instead of the plain
+  ``ours`` merge strategy when pulling to the local clone of the
+  gitolite-admin repository.  The use of ``-s ours`` was causing any updates
+  to keys made by an administrator, outside of Trac, to be lost.
+
+
 0.3 (2016-06-20)
 ================
 

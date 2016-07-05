@@ -226,7 +226,7 @@ class SshKeysPlugin(Component):
             else:
                 deleted_keys.append(keyname)
 
-        cmds = [('pull', '-s', 'ours', 'origin', 'master')]
+        cmds = [('pull', '-s', 'recursive', '-Xours', 'origin', 'master')]
 
         if added_keys:
             cmds.append(('add',) + tuple(added_keys))
