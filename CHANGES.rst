@@ -1,4 +1,4 @@
-0.3.2 (unreleased)
+0.3.2 (2016-05-05)
 ==================
 
 * Improved the SSH key plugin to use the Trac environment API for creating/
