@@ -1,5 +1,8 @@
 from trac.core import Component, implements, TracError
+from trac.env import IEnvironmentSetupParticipant
 from trac.config import Option, PathOption
+from trac.db.api import DatabaseManager
+from trac.db.schema import Table, Column
 from trac.web.chrome import ITemplateProvider, add_notice
 from trac.util.translation import gettext
 from trac.prefs import IPreferencePanelProvider
@@ -16,11 +19,50 @@ from fasteners import InterProcessLock as IPLock, locked
 
 
 class UserDataStore(Component):
+    implements(IEnvironmentSetupParticipant)
+
+    _schema = [
+        Table('user_data_store', key=('user', 'key'))[
+            Column('user'),
+            Column('key'),
+            Column('value')
+        ]
+    ]
+
+    _schema_version = 1
+
+    # IEnvironmentSetupParticipant methods
+    def environment_created(self):
+        dbm = DatabaseManager(self.env)
+        dbm.create_tables(self._schema)
+        dbm.set_database_version(self._schema_version, 'sage_trac')
+
+    def environment_needs_upgrade(self):
+        dbm = DatabaseManager(self.env)
+        return dbm.needs_upgrade(self._schema_version, 'sage_trac')
+
+    def upgrade_environment(self):
+        dbm = DatabaseManager(self.env)
+        if dbm.get_database_version('sage_trac') == 0:
+            # Version '0' can mean one of two things: Either the plugin has
+            # never been used at all in an existing Trac environment, or an
+            # older version of the plugin (< 0.3.2) was used, which did not
+            # track the plugin schema version
+            if 'user_data_store' not in dbm.get_table_names():
+                dbm.create_tables(self._schema)
+
+            dbm.set_database_version(self._schema_version, 'sage_trac')
+
+        # Else we would upgrade the schema if there were a new schema, but
+        # currently there is only one version of the schema (other than
+        # version zero which is the same as verion 1 without an explicit
+        # version set)
+
     def save_data(self, user, dictionary):
         """
         Saves user data for user.
         """
-        self._create_table()
+
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('DELETE FROM "user_data_store" WHERE "user"=%s', (user,))
@@ -32,7 +74,7 @@ class UserDataStore(Component):
         """
         Returns a dictionary with all data keys
         """
-        self._create_table()
+
         with self.env.db_query as db:
             cursor = db.cursor()
             cursor.execute('SELECT key, value FROM "user_data_store" WHERE "user"=%s', (user,))
@@ -42,7 +84,7 @@ class UserDataStore(Component):
         """
         Returns a dictionary with all data keys
         """
-        self._create_table()
+
         return_value = {}
         with self.env.db_query as db:
             cursor = db.cursor()
@@ -54,14 +96,6 @@ class UserDataStore(Component):
                     return_value[user] = {key: value}
         return return_value
 
-    def _create_table(self):
-        with self.env.db_transaction as db:
-            cursor = db.cursor()
-            cursor.execute('SELECT * FROM information_schema.tables WHERE "table_name"=%s', ('user_data_store',))
-            try:
-                cursor.next()
-            except StopIteration:
-                cursor.execute('CREATE TABLE "user_data_store" ( "user" text, key text, value text, UNIQUE ( "user", key ) )')
 
 class SshKeysPlugin(Component):
     implements(IPreferencePanelProvider, IAdminCommandProvider,
