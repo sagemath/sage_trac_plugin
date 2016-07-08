@@ -168,7 +168,6 @@ class SshKeysPlugin(Component):
                           'repository'.format(exc))
             shutil.rmtree(self.gitolite_admin)
             self._clone_gitolite_admin()
-            self._cleanup_gitolite_admin()
 
     def _clone_gitolite_admin(self):
         # Initialize new clone of the gitolite-admin repo
@@ -183,6 +182,8 @@ class SshKeysPlugin(Component):
         ret, out = self._git('clone', clone_path, self.gitolite_admin,
                              chdir=False)
         if ret != 0:
+            if os.path.exists(self.gitolite_admin):
+                shutil.rmtree(self.gitolite_admin)
             raise TracError(
                 'Failed to clone gitolite-admin repository: '
                 '{0}'.format(out))
