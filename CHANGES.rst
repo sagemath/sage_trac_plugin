@@ -1,4 +1,4 @@
-0.3.3 (unreleased)
+0.3.3 (2016-07-08)
 ==================
 
 * Re-clone the gitolite-admin repository if an improperly shut down process
