@@ -6,7 +6,7 @@
   plugin to fail in some cases.
 
 
-0.3.2 (2016-05-05)
+0.3.2 (2016-07-05)
 ==================
 
 * Improved the SSH key plugin to use the Trac environment API for creating/
