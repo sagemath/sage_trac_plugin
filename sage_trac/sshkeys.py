@@ -15,6 +15,7 @@ from tracrpc.api import IXMLRPCHandler
 from genshi import Markup
 
 import os
+import shutil
 import subprocess
 
 from threading import Lock
@@ -152,21 +153,49 @@ class SshKeysPlugin(Component):
         """
 
         if not os.path.exists(self.gitolite_admin):
-            # Initialize new clone of the gitolite-admin repo
-            clone_path = '{user}@{host}:gitolite-admin'.format(
-                    user=self.gitolite_user, host=self.gitolite_host)
-            ret, out = self._git('clone', clone_path, self.gitolite_admin,
-                                 chdir=False)
-            if ret != 0:
-                raise TracError(
-                    'Failed to clone gitolite-admin repository: '
-                    '{0}'.format(out))
+            return self._clone_gitolite_admin()
+
+        # Try to cleanup the gitolite-admin repo to make sure it starts out in
+        # a clean state; if this fails (which can happen for example if git
+        # crashed and leaves and index.lock file around) we should remove the
+        # repository and try cloning a pristine copy.  Failing that, raise an
+        # error.
+        try:
+            self._cleanup_gitolite_admin()
+        except TracError as exc:
+            self.log.warn('Error cleaning up gitolite-admin repository '
+                          'during initialization: {0}; re-cloning the '
+                          'repository'.format(exc))
+            shutil.rmtree(self.gitolite_admin)
+            self._clone_gitolite_admin()
+            self._cleanup_gitolite_admin()
+
+    def _clone_gitolite_admin(self):
+        # Initialize new clone of the gitolite-admin repo
+
+        # This method should be called with the locks in self._locks
+        # held!
+        if os.path.exists(self.gitolite_admin):
+            return
+
+        clone_path = '{user}@{host}:gitolite-admin'.format(
+                user=self.gitolite_user, host=self.gitolite_host)
+        ret, out = self._git('clone', clone_path, self.gitolite_admin,
+                             chdir=False)
+        if ret != 0:
+            raise TracError(
+                'Failed to clone gitolite-admin repository: '
+                '{0}'.format(out))
 
             return
 
+    def _cleanup_gitolite_admin(self):
         # Clean up any uncommitted files or changes; this suggests
         # the repository was left in an inconsistent state (e.g.
         # on process crash); then fetch and update from origin
+
+        # This method should be called with the locks in self._locks
+        # held!
         for cmds in [('clean', '-dfx'), ('fetch', 'origin'),
                      ('reset', '--hard', 'origin/master')]:
             ret, out = self._git(*cmds)

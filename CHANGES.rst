@@ -1,7 +1,9 @@
 0.3.3 (unreleased)
 ==================
 
-* Nothing changed yet.
+* Re-clone the gitolite-admin repository if an improperly shut down process
+  left in an inconsistent state--this was causing initialization of the
+  plugin to fail in some cases.
 
 
 0.3.2 (2016-05-05)
