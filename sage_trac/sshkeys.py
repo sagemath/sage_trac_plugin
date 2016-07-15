@@ -168,6 +168,8 @@ class SshKeysPlugin(Component):
                           'repository'.format(exc))
             shutil.rmtree(self.gitolite_admin)
             self._clone_gitolite_admin()
+        else:
+            self._update_gitolite_admin()
 
     def _clone_gitolite_admin(self):
         # Initialize new clone of the gitolite-admin repo
@@ -193,18 +195,30 @@ class SshKeysPlugin(Component):
     def _cleanup_gitolite_admin(self):
         # Clean up any uncommitted files or changes; this suggests
         # the repository was left in an inconsistent state (e.g.
-        # on process crash); then fetch and update from origin
-
+        # on process crash
         # This method should be called with the locks in self._locks
         # held!
-        for cmds in [('clean', '-dfx'), ('fetch', 'origin'),
+        ret, out = self._git('clean', '-dfx')
+        if ret != 0:
+            raise TracError(
+                'Error cleaning up the gitolite-admin repository: {0}; '
+                'will attempt to re-clone the repository; failing '
+                'that manual administrator intervention may be '
+                'needed.'.format(out))
+
+    def _update_gitolite_admin(self):
+        # Fetch latest changes from the main repository and reset
+        # to origin/master
+        # This method should be called with the locks in self._locks
+        # held!
+        for cmds in [('fetch', 'origin'),
                      ('reset', '--hard', 'origin/master')]:
             ret, out = self._git(*cmds)
             if ret != 0:
                 raise TracError(
-                    'Error cleaning up / updating the gitolite-admin '
-                    'repository: {0}; you may have to manually clean up '
-                    'or re-clone the repository'.format(out))
+                    'Error updating the gitolite-admin repository: {0}; you '
+                    'may have to manually clean up or re-clone the '
+                    'repository'.format(out))
 
     # IPreferencePanelProvider methods
     def get_preference_panels(self, req):
