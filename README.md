@@ -113,7 +113,7 @@ This component takes two optional `trac.ini` settings:
 
 * `[sage_trac]/gitolite_user`--the user to log in as when connecting to
   the gitolite server (default: `git`)
-* `[sage_trac]/gitolite_admin--the path to the local clone of the
+* `[sage_trac]/gitolite_admin`--the path to the local clone of the
   gitolite-admin repository that Trac will commit to and use to push changes
   upstream (default: `/path/to/trac/env/gitolite-admin`)
 
