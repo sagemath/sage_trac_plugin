@@ -19,8 +19,50 @@ import shutil
 import subprocess
 
 from threading import Lock
-from fasteners import InterProcessLock as IPLock, locked
+from fasteners import InterProcessLock as IPLock, locked as locked_
 from sshpubkeys import SSHKey, InvalidKeyException
+
+
+def locked(method):
+    """
+    Wrapper around fasteners.locked which provides a decorator
+    for methods that allows passing the Trac logger to the
+    ``locked`` argument of fastners.locked.
+
+    Also adds logging when a locked method is being entered
+    and exits.
+    """
+
+    def inner_method(self, *args, **kwargs):
+        # Wrapper around the original method to log when the
+        # lock is acquired/released--this goes inside the wrapper
+        # provided by `fasteners.locked` so entering/leaving this
+        # method means acquiring/releasing the lock
+        self.log.debug(
+            '[pid:%s] Acquired lock for and entered method %s' %
+            (os.getpid(), method.__name__))
+        try:
+            return method(self, *args, **kwargs)
+        finally:
+            self.log.debug(
+                '[pid:%s] Releasing lock for and leaving method %s' %
+                (os.getpid(), method.__name__))
+
+    def wrapper(self, *args, **kwargs):
+        # Use fasteners.locked to make the normal wrapper around
+        # the given method
+        inner_decorator = locked_(lock='_locks', logger=self.log)
+        inner_wrapper = inner_decorator(inner_method)
+        self.log.debug(
+            '[pid:%s] About to enter locked method %s; may have to wait on '
+            'lock' % (os.getpid(), method.__name__))
+        ret = inner_wrapper(self, *args, **kwargs)
+        self.log.debug(
+            '[pid:%s] Left locked method %s; it should be unlocked now' %
+            (os.getpid(), method.__name__))
+        return ret
+
+    return wrapper
 
 
 class UserDataStore(Component):
@@ -140,7 +182,7 @@ class SshKeysPlugin(Component):
         self._locks = [IPLock(lockfile), Lock()]
         self._init_gitolite_admin()
 
-    @locked(lock='_locks')
+    @locked
     def _init_gitolite_admin(self):
         """
         Initilizes (by cloning) or cleans up (if it already exists) the
@@ -201,10 +243,8 @@ class SshKeysPlugin(Component):
         ret, out = self._git('clean', '-dfx')
         if ret != 0:
             raise TracError(
-                'Error cleaning up the gitolite-admin repository: {0}; '
-                'will attempt to re-clone the repository; failing '
-                'that manual administrator intervention may be '
-                'needed.'.format(out))
+                'Error cleaning up the gitolite-admin repository: '
+                '{0}'.format(out))
 
     def _update_gitolite_admin(self):
         # Fetch latest changes from the main repository and reset
@@ -272,8 +312,14 @@ class SshKeysPlugin(Component):
         chdir = kwargs.pop('chdir', True)
         prev_dir = os.getcwd()
         if chdir:
-            os.chdir(self.gitolite_admin)
+            if os.path.exists(self.gitolite_admin):
+                os.chdir(self.gitolite_admin)
+            else:
+                return (-1, 'Cannot change directories to the gitolite-admin '
+                            'repository; it does not exist yet.')
         try:
+            self.log.debug('[pid:%s] Calling `git %s` in %s' %
+                           (os.getpid(), ' '.join(args), os.getcwd()))
             out = subprocess.check_output(('git',) + args,
                                           stderr=subprocess.STDOUT)
             code = 0
@@ -286,7 +332,7 @@ class SshKeysPlugin(Component):
         return code, out.decode('latin1')
 
     # Gitolite exporting
-    @locked(lock='_locks')
+    @locked
     def _export_to_gitolite(self, user, keys):
         def _mkdir(path):
             if not os.path.isdir(path):
