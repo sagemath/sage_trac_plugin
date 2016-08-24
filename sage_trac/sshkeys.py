@@ -18,9 +18,13 @@ import os
 import shutil
 import subprocess
 
-from threading import Lock
+from threading import Lock, current_thread
 from fasteners import InterProcessLock as IPLock, locked as locked_
 from sshpubkeys import SSHKey, InvalidKeyException
+
+
+def _my_id():
+    return 'pid:%s, tid:%s' % (os.getpid(), current_thread().name)
 
 
 def locked(method):
@@ -33,20 +37,22 @@ def locked(method):
     and exits.
     """
 
+    my_id = _my_id()
+
     def inner_method(self, *args, **kwargs):
         # Wrapper around the original method to log when the
         # lock is acquired/released--this goes inside the wrapper
         # provided by `fasteners.locked` so entering/leaving this
         # method means acquiring/releasing the lock
         self.log.debug(
-            '[pid:%s] Acquired lock for and entered method %s' %
-            (os.getpid(), method.__name__))
+            '[%s] Acquired lock for and entered method %s' %
+            (my_id, method.__name__))
         try:
             return method(self, *args, **kwargs)
         finally:
             self.log.debug(
-                '[pid:%s] Releasing lock for and leaving method %s' %
-                (os.getpid(), method.__name__))
+                '[%s] Releasing lock for and leaving method %s' %
+                (my_id, method.__name__))
 
     def wrapper(self, *args, **kwargs):
         # Use fasteners.locked to make the normal wrapper around
@@ -54,12 +60,12 @@ def locked(method):
         inner_decorator = locked_(lock='_locks', logger=self.log)
         inner_wrapper = inner_decorator(inner_method)
         self.log.debug(
-            '[pid:%s] About to enter locked method %s; may have to wait on '
-            'lock' % (os.getpid(), method.__name__))
+            '[%s] About to enter locked method %s; may have to wait on '
+            'lock' % (my_id, method.__name__))
         ret = inner_wrapper(self, *args, **kwargs)
         self.log.debug(
-            '[pid:%s] Left locked method %s; it should be unlocked now' %
-            (os.getpid(), method.__name__))
+            '[%s] Left locked method %s; it should be unlocked now' %
+            (my_id, method.__name__))
         return ret
 
     return wrapper
@@ -318,8 +324,8 @@ class SshKeysPlugin(Component):
                 return (-1, 'Cannot change directories to the gitolite-admin '
                             'repository; it does not exist yet.')
         try:
-            self.log.debug('[pid:%s] Calling `git %s` in %s' %
-                           (os.getpid(), ' '.join(args), os.getcwd()))
+            self.log.debug('[%s] Calling `git %s` in %s' %
+                           (_my_id(), ' '.join(args), os.getcwd()))
             out = subprocess.check_output(('git',) + args,
                                           stderr=subprocess.STDOUT)
             code = 0
