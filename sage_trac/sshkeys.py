@@ -170,7 +170,7 @@ class SshKeysPlugin(Component):
                                     'trac environment path')
 
     def __init__(self):
-        Component.__init__(self)
+        super(SshKeysPlugin, self).__init__()
         self._user_data_store = UserDataStore(self.compmgr)
 
 

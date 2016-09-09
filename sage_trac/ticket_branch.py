@@ -35,8 +35,8 @@ class TicketBranch(git_merger.GitMerger):
                 'through action of the project release manager (default: '
                 '"Release Manager <release@sagemath.org>)')
 
-    def __init__(self, *args, **kwargs):
-        git_merger.GitMerger.__init__(self, *args, **kwargs)
+    def __init__(self):
+        super(TicketBranch, self).__init__()
 
         m = _signature_re.match(self.release_manager_signature)
         if not m:

@@ -26,8 +26,8 @@ class GitMerger(GitBase):
                 'for commits made to the Git repository by the Trac '
                 'plugin (default: trac <trac@sagemath.org>)')
 
-    def __init__(self, *args, **kwargs):
-        GitBase.__init__(self, *args, **kwargs)
+    def __init__(self):
+        super(GitMerge, self).__init__()
 
         m = _signature_re.match(self.trac_signature)
         if not m:

@@ -32,8 +32,8 @@ class BuildbotHook(git_merger.GitMerger):
     implements(IXMLRPCHandler)
     implements(ITemplateStreamFilter)
 
-    def __init__(self, *args, **kwds):
-        git_merger.GitMerger.__init__(self, *args, **kwds)
+    def __init__(self):
+        super(BuildbotHook, self).__init__()
 
         for attr in ("host", "username", "password", "repository"):
             setattr(self, attr, self.config.get("buildbot", attr, ''))
