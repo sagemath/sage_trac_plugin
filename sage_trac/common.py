@@ -129,3 +129,85 @@ class GitBase(Component):
             query = {'id2': base, 'id': tip}
 
         return self._cgit_url((self.cgit_repo, 'diff'), query)
+
+
+class GenericTableProvider(Component):
+    """
+    Mixin class for Components that provide a new table for the Trac
+    database.
+
+    Each Component can have its own schema + schema version independent
+    of other Components included in this plug-in, so that each can be
+    enabled independently without requiring database tables for the other
+    Components.
+    """
+
+    implements(IEnvironmentSetupParticipant)
+
+    _schema = []
+    _schema_version = None
+
+    def __init__(self):
+        if not (_schema and _schema_version is not None):
+            raise TracError(
+                "As a subclass of GenericTableProvider, %s must provide "
+                "valid _schema and _schema_version attributes." %
+                self.__class__.__name__)
+
+        super(GenericTableProvider, self).__init__()
+
+    @property
+    def _name(self):
+        """
+        The name of this component as used to store its schema version.
+        """
+
+        cls = self.__class__
+
+        return ('%s.%s' % (cls.__module__, cls.__name__)).lower()
+
+    def _upgrade_schema(self, prev_version):
+        """
+        Override this method to provide Component-specific schema upgrade
+        instructions.
+        """
+
+        raise NotImplementedError
+
+    # IEnvironmentSetupParticipant methods
+    def environment_created(self):
+        dbm = DatabaseManager(self.env)
+        dbm.create_tables(self._schema)
+        dbm.set_database_version(self._schema_version, self._name)
+
+    def environment_needs_upgrade(self):
+        dbm = DatabaseManager(self.env)
+        return dbm.needs_upgrade(self._schema_version, self._name)
+
+    def upgrade_environment(self):
+        dbm = DatabaseManager(self.env)
+
+        prev_version = dbm.get_database_version(self._name)
+        to_create = []
+
+        if prev_version is False:
+            # The schema for this Component has never been created; presumably
+            # all tables have not been created, but for earlier versions of
+            # this plugin they may have been, so only create tables that don't
+            # already exist (this is a bit fragile but good enough for the
+            # limited use case of this plugin)
+            table_names = dbm.get_table_names()
+            to_create = [table for table in self._schema
+                         if table.name not in table_names]
+
+        if to_create:
+            dbm.create_tables(to_create)
+        else:
+            # This calls _upgrade_schema even if prev_version was False, to
+            # support older versions of the plugin that did not track their
+            # schema version, and need to be able to "update" even when tables
+            # for this Component already exist
+            self._upgrade_schema(prev_version)
+
+        # Only if no exceptions occurred above
+        dbm.set_database_version(self._schema_version, self._name)
