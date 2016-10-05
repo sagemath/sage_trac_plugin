@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from trac.core import Component, TracError
+from trac.core import Component, TracError, implements
 from trac.config import Option, PathOption
+from trac.db.api import DatabaseManager
+from trac.env import IEnvironmentSetupParticipant
 
 import pygit2
 import re
