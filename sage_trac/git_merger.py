@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 
+import shutil
 import subprocess
+import tempfile
 import os.path
 
 import pygit2
 
-from .common import GitBase, _signature_re
+from .common import GitBase, _signature_re, GenericTableProvider
 
 from trac.core import implements, TracError
 from trac.config import Option
+from trac.db.schema import Table, Column
 from trac.ticket.model import Ticket
 from tracrpc.api import IXMLRPCHandler
 
@@ -17,7 +20,7 @@ for _merge in GIT_SPECIAL_MERGES:
     globals()[_merge] = _merge
 
 
-class GitMerger(GitBase):
+class GitMerger(GitBase, GenericTableProvider):
     implements(IXMLRPCHandler)
 
     trac_signature = Option(
@@ -26,8 +29,18 @@ class GitMerger(GitBase):
                 'for commits made to the Git repository by the Trac '
                 'plugin (default: trac <trac@sagemath.org>)')
 
+    _schema = [
+        Table('merge_store', key='target')[
+            Column('target'),
+            Column('base'),
+            Column('tmp')
+        ]
+    ]
+
+    _schema_version = 1
+
     def __init__(self):
-        super(GitMerge, self).__init__()
+        super(GitMerger, self).__init__()
 
         m = _signature_re.match(self.trac_signature)
         if not m:
@@ -49,23 +62,28 @@ class GitMerger(GitBase):
         return ret
 
     def _get_cache(self, commit):
-        GitMerger._create_table(self)
-        with self.env.db_query as db:
-            cursor = db.cursor()
-            cursor.execute('SELECT base, tmp FROM "merge_store" WHERE target=%s', (commit.hex,))
-            try:
-                base, tmp = cursor.next()
-            except StopIteration:
+        with self.env.db_query as query:
+            cached = list(query("""
+                SELECT base, tmp FROM "merge_store" WHERE target=%s
+                """, (commit.hex,)))
+
+            if not cached:
                 return None
-        if base != self.master.hex:
-            GitMerger._drop_table(self)
-            return None
+
+            base, tmp = cached[0]
+
+            if base != self.master.hex:
+                with self.env.db_transaction as tx:
+                    tx("DELETE FROM merge_store WHERE target=%s",
+                       (commit.hex,))
+                return None
+
         if tmp in GIT_SPECIAL_MERGES:
             return tmp
+
         return self._git.get(tmp)
 
     def _set_cache(self, commit, tmp):
-        GitMerger._create_table(self)
         with self.env.db_transaction as db:
             cursor = db.cursor()
             cursor.execute('DELETE FROM "merge_store" WHERE target=%s', (commit.hex,))
@@ -73,27 +91,7 @@ class GitMerger(GitBase):
                 tmp = tmp.hex
             cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)', (self.master.hex, commit.hex, tmp))
 
-    def _create_table(self):
-        with self.env.db_transaction as db:
-            cursor = db.cursor()
-            cursor.execute('SELECT * FROM information_schema.tables WHERE "table_name"=%s', ('merge_store',))
-            try:
-                cursor.next()
-            except StopIteration:
-                cursor.execute('CREATE TABLE "merge_store" ( base text, target text, tmp text, PRIMARY KEY ( target ), UNIQUE ( target, tmp ) )')
-
-    def _drop_table(self):
-        with self.env.db_transaction as db:
-            cursor = db.cursor()
-            cursor.execute('SELECT * FROM information_schema.tables WHERE "table_name"=%s', ('merge_store',))
-            try:
-                cursor.next()
-                cursor.execute('DROP TABLE "merge_store"')
-            except StopIteration:
-                pass
-
     def _merge(self, commit):
-        import tempfile
         tmpdir = tempfile.mkdtemp()
 
         try:
@@ -151,7 +149,6 @@ class GitMerger(GitBase):
                             [repo.head.get_object().oid, commit.oid], # parents
                         ))
         finally:
-            import shutil
             shutil.rmtree(tmpdir)
         return ret
 
