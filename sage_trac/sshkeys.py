@@ -1,8 +1,6 @@
 from trac.core import Component, implements, TracError
-from trac.env import IEnvironmentSetupParticipant
 from trac.config import Option, PathOption
-from trac.db.api import DatabaseManager
-from trac.db.schema import Table, Column
+from trac.db.schema import Table, Column, Index
 from trac.web.chrome import ITemplateProvider, add_notice, add_warning
 from trac.util.translation import gettext
 from trac.prefs import IPreferencePanelProvider
@@ -21,6 +19,8 @@ import subprocess
 from threading import Lock, current_thread
 from fasteners import InterProcessLock as IPLock, locked as locked_
 from sshpubkeys import SSHKey, InvalidKeyException
+
+from .common import GenericTableProvider
 
 
 def _my_id():
@@ -72,8 +72,6 @@ def locked(method):
 
 
 class UserDataStore(Component):
-    implements(IEnvironmentSetupParticipant)
-
     _schema = [
         Table('user_data_store', key=('user', 'key'))[
             Column('user'),
@@ -84,32 +82,11 @@ class UserDataStore(Component):
 
     _schema_version = 1
 
-    # IEnvironmentSetupParticipant methods
-    def environment_created(self):
-        dbm = DatabaseManager(self.env)
-        dbm.create_tables(self._schema)
-        dbm.set_database_version(self._schema_version, 'sage_trac')
+    def __init__(self):
+        self.log.warning('The UserDataStore plugin is deprecated and may be '
+                         'disabled (it no longer does anything).')
+        super(UserDataStore, self).__init__()
 
-    def environment_needs_upgrade(self):
-        dbm = DatabaseManager(self.env)
-        return dbm.needs_upgrade(self._schema_version, 'sage_trac')
-
-    def upgrade_environment(self):
-        dbm = DatabaseManager(self.env)
-        if dbm.get_database_version('sage_trac') == 0:
-            # Version '0' can mean one of two things: Either the plugin has
-            # never been used at all in an existing Trac environment, or an
-            # older version of the plugin (< 0.3.2) was used, which did not
-            # track the plugin schema version
-            if 'user_data_store' not in dbm.get_table_names():
-                dbm.create_tables(self._schema)
-
-            dbm.set_database_version(self._schema_version, 'sage_trac')
-
-        # Else we would upgrade the schema if there were a new schema, but
-        # currently there is only one version of the schema (other than
-        # version zero which is the same as verion 1 without an explicit
-        # version set)
 
     def save_data(self, user, dictionary):
         """
@@ -150,7 +127,7 @@ class UserDataStore(Component):
         return return_value
 
 
-class SshKeysPlugin(Component):
+class SshKeysPlugin(GenericTableProvider):
     implements(IPreferencePanelProvider, IAdminCommandProvider,
                IXMLRPCHandler, ITemplateProvider)
 
@@ -168,11 +145,20 @@ class SshKeysPlugin(Component):
                                     'manage SSH keys (default: '
                                     'gitolite-admin, directly under the '
                                     'trac environment path')
+    _schema = [
+        Table('sage_trac_ssh_keys', key=('user', 'key'))[
+            Column('user'),
+            Column('key'),
+            Column('title'),  # currently unused, but included in anticipation
+            Column('key_order', type='int'),
+            Index(('user',))
+        ]
+    ]
+
+    _schema_version = 1
 
     def __init__(self):
         super(SshKeysPlugin, self).__init__()
-        self._user_data_store = UserDataStore(self.compmgr)
-
 
         if not self.gitolite_host:
             raise TracError(
@@ -287,7 +273,9 @@ class SshKeysPlugin(Component):
                 add_notice(req, 'Your ssh key has been saved.')
             req.redirect(req.href.prefs(panel or None))
 
-        return 'prefs_ssh_keys.html', self._user_data_store.get_data(req.authname)
+        ssh_keys = '\n'.join(key[0] for key in self._getkeys(req.authname))
+
+        return 'prefs_ssh_keys.html', {'ssh_keys': ssh_keys}
 
     def get_templates_dirs(self):
         from pkg_resources import resource_filename
@@ -312,7 +300,7 @@ class SshKeysPlugin(Component):
               printout(user)
 
     def _do_dump_key(self, user):
-        printout(self._getkeys(user))
+        printout([key[0] for key in self._getkeys(user)])
 
     def _git(self, *args, **kwargs):
         chdir = kwargs.pop('chdir', True)
@@ -360,7 +348,7 @@ class SshKeysPlugin(Component):
                 f.write(key)
             added_keys.append(keyname)
 
-        for idx in range(len(keys), len(self._getkeys(user))):
+        for idx in range(len(keys), len(list(self._getkeys(user)))):
             keyname = get_keyname(idx)
             try:
                 os.unlink(keyname)
@@ -402,26 +390,36 @@ class SshKeysPlugin(Component):
 
     # general functionality
     def _listusers(self):
-        all_data = self._user_data_store.get_data_all_users()
-        for user, data in all_data.iteritems():
-            if data.has_key('ssh_keys'):
-                yield user
+        for user, in self.env.db_query("""
+                SELECT DISTINCT user FROM sage_trac_ssh_keys
+                ORDER BY user"""):
+            yield user
 
     def _getkeys(self, user):
-        ret = self._user_data_store.get_data(user)
-        if not ret: return []
-        return ret['ssh_keys'].splitlines()
+        for key, title in self.env.db_query("""
+                SELECT key, title from sage_trac_ssh_keys
+                WHERE user=%s
+                ORDER BY key_order"""):
+            yield key, title
 
     def _setkeys(self, user, keys):
         self._export_to_gitolite(user, keys)
-        self._user_data_store.save_data(user, {'ssh_keys': '\n'.join(keys)})
+
+        with self.env.db_transaction as db:
+            # Since _setkeys is passed a full list of keys right now the
+            # simplest thing to do is delete all existing entries and insert
+            # new ones
+            db('DELETE FROM "sage_trac_ssh_keys" WHERE "user"=%s', (user,))
+            for idx, key in enumerate(keys):
+                db('INSERT INTO "sage_trac_ssh_keys" VALUES (%s, %s, %s, %s)',
+                   (user, key, '', idx))
 
     # RPC boilerplate
     def listusers(self, req):
         return list(self._listusers())
 
     def getkeys(self, req):
-        return self._getkeys(req.authname)
+        return [key[0] for key in self._getkeys(req.authname)]
 
     def validatekeys(self, req, keys):
         """
@@ -482,3 +480,28 @@ class SshKeysPlugin(Component):
         yield (None, ((None,list),), self.setkeys)
         yield (None, ((None,list),), self.addkeys)
         yield (None, ((None,str),), self.addkey)
+
+    # GenericTableProvider methods
+    def _upgrade_schema(self, db, prev_version):
+        if prev_version is False:
+            # previous versions of this plugin used the generic version key
+            # 'sage_trac' for the entire plugin, before adding different
+            # schema versions for each sub-component of the plugin
+            #
+            # Then we migrate the contents of the old user_data_store table
+            # (which was *only* used by this component) and drop that table
+            db('DELETE FROM system WHERE name=%s', ('sage_trac',))
+            with self.env.db_query as query:
+                for user, value in query("""
+                        SELECT user, value FROM user_data_store WHERE key=%s
+                        """, ('ssh_keys',)):
+                    for idx, key in enumerate(value.splitlines()):
+                        key = key.strip()
+                        if not key:
+                            continue
+                        db("""
+                            INSERT INTO sage_trac_ssh_keys
+                            VALUES (%s, %s, %s, %s)
+                            """, (user, key, '', idx))
+
+            db('DROP TABLE user_data_store');
