@@ -168,7 +168,7 @@ class GenericTableProvider(Component):
 
         return ('%s.%s' % (cls.__module__, cls.__name__)).lower()
 
-    def _upgrade_schema(self, prev_version):
+    def _upgrade_schema(self, db, prev_version):
         """
         Override this method to provide Component-specific schema upgrade
         instructions.  This is optional, in case there are no specific
@@ -203,15 +203,19 @@ class GenericTableProvider(Component):
             to_create = [table for table in self._schema
                          if table.name not in table_names]
 
-        if to_create:
-            dbm.create_tables(to_create)
-        else:
+        # Use a common transaction for both create_tables and upgrade_schema
+        # (create_tables creates its own transaction context manager, but
+        # these can be safely nested)
+        with self.env.db_transaction as db:
+            if to_create:
+                dbm.create_tables(to_create)
+
             # This calls _upgrade_schema even if prev_version was False, to
             # support older versions of the plugin that did not track their
             # schema version, and need to be able to "update" even when tables
             # for this Component already exist
             try:
-                self._upgrade_schema(prev_version)
+                self._upgrade_schema(db, prev_version)
             except NotImplementedError:
                 pass
 
