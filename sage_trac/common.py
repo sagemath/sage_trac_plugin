@@ -150,7 +150,7 @@ class GenericTableProvider(Component):
     _schema_version = None
 
     def __init__(self):
-        if not (_schema and _schema_version is not None):
+        if not (self._schema and self._schema_version is not None):
             raise TracError(
                 "As a subclass of GenericTableProvider, %s must provide "
                 "valid _schema and _schema_version attributes." %
