@@ -171,6 +171,7 @@ class GenericTableProvider(Component):
     def _upgrade_schema(self, prev_version):
         """
         Override this method to provide Component-specific schema upgrade
+        instructions.  This is optional, in case there are no specific
         instructions.
         """
 
@@ -209,7 +210,10 @@ class GenericTableProvider(Component):
             # support older versions of the plugin that did not track their
             # schema version, and need to be able to "update" even when tables
             # for this Component already exist
-            self._upgrade_schema(prev_version)
+            try:
+                self._upgrade_schema(prev_version)
+            except NotImplementedError:
+                pass
 
         # Only if no exceptions occurred above
         dbm.set_database_version(self._schema_version, self._name)
