@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from genshi.builder import tag
+from genshi.core import TEXT
 from genshi.filters import Transformer
 
 from trac.core import *
@@ -57,6 +58,18 @@ class TicketBranch(git_merger.GitMerger):
         if filename != 'ticket.html' or not branch:
             return stream
 
+        def positive_review(url=None):
+            if url is None:
+                return FILTER.attr("class", "positive_review")
+
+            return FILTER_TEXT.map(unicode.strip, TEXT).wrap(
+                    tag.a(class_="positive_review",
+                          href=url))
+
+        def commits(url):
+            return FILTER.append(tag.span(' ')).\
+                    append(tag.a('(Commits)', href=url))
+
         def error_filters(error):
             return (FILTER.attr("class", "needs_work"),
                     FILTER.attr("title", error))
@@ -94,33 +107,25 @@ class TicketBranch(git_merger.GitMerger):
             base, merge = self.find_base_and_merge(branch)
 
             if base is not None:
-                filters.append(
-                        FILTER.append(tag.a('(Commits)',
-                            href=self.log_url(base, branch))))
+                filters.append(commits(self.log_url(base, branch)))
+
             if merge is None:
-                filters.append(
-                        FILTER.attr("class", "positive_review"))
+                filters.append(positive_review())
             else:
-                filters.append(
-                        FILTER_TEXT.wrap(tag.a(class_="positive_review",
-                            href=self.commit_url(merge))))
+                filters.append(positive_review(self.commit_url(merge)))
+
             filters.append(
                     FILTER.attr("title", "already merged"))
         else:
-            filters.append(
-                    FILTER.append(tag.a('(Commits)',
-                        href=self.log_url(self.master, branch))))
+            filters.append(commits(self.log_url(self.master, branch)))
 
             if ret == git_merger.GIT_FAILED_MERGE:
                 return error("trac's automerging failed", filters)
             elif ret == git_merger.GIT_FASTFORWARD:
-                filters.append(
-                        FILTER_TEXT.wrap(tag.a(class_="positive_review",
-                            href=self.diff_url(self.master, branch))))
+                filters.append(positive_review(self.diff_url(self.master,
+                                                             branch)))
             else:
-                filters.append(
-                        FILTER_TEXT.wrap(tag.a(class_="positive_review",
-                            href=self.diff_url(ret))))
+                filters.append(positive_review(self.diff_url(ret)))
                 filters.append(
                         FILTER.attr("title", "merges cleanly"))
 
