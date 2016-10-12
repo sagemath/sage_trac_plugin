@@ -7,7 +7,8 @@ import os.path
 
 import pygit2
 
-from .common import GitBase, _signature_re, GenericTableProvider, run_git
+from .common import (GitBase, _signature_re, GenericTableProvider, run_git,
+                     hexify)
 
 from trac.core import implements, TracError
 from trac.config import Option
@@ -18,6 +19,10 @@ from tracrpc.api import IXMLRPCHandler
 GIT_SPECIAL_MERGES = ('GIT_FASTFORWARD', 'GIT_UPTODATE', 'GIT_FAILED_MERGE')
 for _merge in GIT_SPECIAL_MERGES:
     globals()[_merge] = _merge
+
+
+def signature_eq(sig1, sig2):
+    return sig1.name == sig2.name and sig1.email == sig2.email
 
 
 class GitMerger(GitBase, GenericTableProvider):
@@ -49,6 +54,13 @@ class GitMerger(GitBase, GenericTableProvider):
                 '"Name <email@example.com>" format')
 
         self._signature = pygit2.Signature(m.group(1), m.group(2))
+
+    def peek_merge(self, commit):
+        """
+        See if the given commit already has a cached merge result.
+        """
+
+        return self._get_cache(commit)
 
     def get_merge(self, commit):
         ret = self._get_cache(commit)
@@ -159,6 +171,63 @@ class GitMerger(GitBase, GenericTableProvider):
             if os.path.exists(tmpdir):
                 shutil.rmtree(tmpdir)
         return ret
+
+    def find_base_and_merge(self, branch):
+        walker = self._git.walk(self.master.oid,
+                pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE)
+        walker.hide(branch.oid)
+        for commit in walker:
+            if (branch.oid in (p.oid for p in commit.parents) and
+                    signature_eq(commit.author, self._release_signature)):
+                base = None
+                for p in commit.parents:
+                    if p.oid == branch.oid:
+                        pass
+                    elif base is None:
+                        base = p.oid
+                    else:
+                        base = self._git.merge_base(base, p.oid)
+                if base is not None:
+                    base = self._git.get(base)
+                return base, commit
+        return None, None
+
+    def get_merge_url(self, req, branch, merge_result=None):
+        """
+        Return the appropriate URL for a merge preview (or lack thereof),
+        along with a URL for the log of commits merged.
+        """
+
+        if merge_result is None:
+            merge_result = self.peek_merge(branch)
+
+        if merge_result == GIT_UPTODATE:
+            base, merge = self.find_base_and_merge(branch)
+
+            if merge is None:
+                merge_url = None
+            else:
+                merge_url = req.abs_href('/git-merger/' +
+                                         hexify(branch))
+
+            if base is None:
+                log_url = None
+            else:
+                log_url = self.log_url(base, branch)
+        else:
+            log_url = self.log_url(self.master, branch)
+
+            if merge_result == GIT_FAILED_MERGE:
+                merge_url = None
+            elif merge_result == GIT_FASTFORWARD:
+                merge_url = self.diff_url(self.master, branch)
+            elif merge_result is not None:
+                # Should be a SHA1 hash
+                merge_url = self.diff_url(merge_result)
+            else:
+                merge_url = req.abs_href('/git-merger/' + hexify(branch))
+
+        return merge_url, log_url
 
     def getMerge(self, req, ticketnum):
         ticket = Ticket(self.env, ticketnum)

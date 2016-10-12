@@ -20,10 +20,6 @@ FILTER = Transformer('//td[@headers="h_branch"]')
 FILTER_TEXT = Transformer('//td[@headers="h_branch"]/text()')
 
 
-def signature_eq(sig1, sig2):
-    return sig1.name == sig2.name and sig1.email == sig2.email
-
-
 class TicketBranch(git_merger.GitMerger):
     """
     A Sage specific plugin which formats the ``branch`` field of a ticket and
@@ -58,15 +54,14 @@ class TicketBranch(git_merger.GitMerger):
         if filename != 'ticket.html' or not branch:
             return stream
 
-        def positive_review(url=None):
+        def merge_link(url=None, class_='positive_review'):
             if url is None:
-                return FILTER.attr("class", "positive_review")
+                return FILTER.attr("class", class_)
 
             return FILTER_TEXT.map(unicode.strip, TEXT).wrap(
-                    tag.a(class_="positive_review",
-                          href=url))
+                    tag.a(class_=class_, href=url))
 
-        def commits(url):
+        def commits_link(url):
             return FILTER.append(tag.span(' ')).\
                     append(tag.a('(Commits)', href=url))
 
@@ -102,54 +97,34 @@ class TicketBranch(git_merger.GitMerger):
                 return error("sha1 hash is too ambiguous")
 
         ret = self.get_merge(branch)
+        merge_url, log_url = self.get_merge_url(req, branch, ret)
 
         if ret == git_merger.GIT_UPTODATE:
-            base, merge = self.find_base_and_merge(branch)
+            if log_url is not None:
+                filters.append(commits_link(self.log_url(base, branch)))
 
-            if base is not None:
-                filters.append(commits(self.log_url(base, branch)))
-
-            if merge is None:
-                filters.append(positive_review())
+            if merge_url is None:
+                filters.append(merge_link())
             else:
-                filters.append(positive_review(self.commit_url(merge)))
+                filters.append(merge_link(merge_url))
 
             filters.append(
                     FILTER.attr("title", "already merged"))
         else:
-            filters.append(commits(self.log_url(self.master, branch)))
+            filters.append(commits_link(log_url))
 
             if ret == git_merger.GIT_FAILED_MERGE:
                 return error("trac's automerging failed", filters)
             elif ret == git_merger.GIT_FASTFORWARD:
-                filters.append(positive_review(self.diff_url(self.master,
-                                                             branch)))
-            else:
-                filters.append(positive_review(self.diff_url(ret)))
+                filters.append(merge_link(merge_url))
+            elif ret is not None:
+                filters.append(merge_link(merge_url))
                 filters.append(
                         FILTER.attr("title", "merges cleanly"))
+            else:
+                filters.append(merge_link(merge_url, 'needs_review'))
 
         return apply_filters(filters)
-
-    def find_base_and_merge(self, branch):
-        walker = self._git.walk(self.master.oid,
-                pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE)
-        walker.hide(branch.oid)
-        for commit in walker:
-            if (branch.oid in (p.oid for p in commit.parents) and
-                    signature_eq(commit.author, self._release_signature)):
-                base = None
-                for p in commit.parents:
-                    if p.oid == branch.oid:
-                        pass
-                    elif base is None:
-                        base = p.oid
-                    else:
-                        base = self._git.merge_base(base, p.oid)
-                if base is not None:
-                    base = self._git.get(base)
-                return base, commit
-        return None, None
 
     # ITemplateProvider methods
     def get_templates_dirs(self):
