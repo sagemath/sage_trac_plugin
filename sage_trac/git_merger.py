@@ -89,7 +89,8 @@ class GitMerger(GitBase, GenericTableProvider):
             cursor.execute('DELETE FROM "merge_store" WHERE target=%s', (commit.hex,))
             if tmp not in GIT_SPECIAL_MERGES:
                 tmp = tmp.hex
-            cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)', (self.master.hex, commit.hex, tmp))
+            cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)',
+                    (commit.hex, self.master.hex, tmp))
 
     def _merge(self, commit):
         tmpdir = tempfile.mkdtemp()
