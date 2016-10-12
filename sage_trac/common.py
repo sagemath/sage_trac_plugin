@@ -8,6 +8,7 @@ from trac.env import IEnvironmentSetupParticipant
 import pygit2
 import re
 import os
+import subprocess
 import urllib
 import urlparse
 
@@ -26,6 +27,37 @@ def hexify(*args):
     if len(res) == 1:
         return res[0]
     return res
+
+
+def run_git(*args, **kwargs):
+    """
+    Run the ``git`` command with the given arguments.
+
+    If given, change directory to the one specified by ``chdir``; otherwise run
+    ``git`` in the current directory.
+    """
+
+    chdir = kwargs.pop('chdir', None)
+
+    prev_dir = os.getcwd()
+    if chdir is not None:
+        if os.path.isdir(chdir):
+            os.chdir(chdir)
+        else:
+            return (-1, 'Cannot change directories to %s; '
+                        'it does not exist yet or is not a directory.')
+    try:
+        out = subprocess.check_output(('git',) + args,
+                                      stderr=subprocess.STDOUT)
+        code = 0
+    except subprocess.CalledProcessError as exc:
+        out, code = exc.output, exc.returncode
+    finally:
+        if chdir:
+            os.chdir(prev_dir)
+
+    return code, out.decode('latin1')
+
 
 class GitBase(Component):
     master_branch = Option('sage_trac', 'master_branch', 'develop',

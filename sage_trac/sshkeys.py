@@ -14,13 +14,12 @@ from genshi import Markup
 
 import os
 import shutil
-import subprocess
 
 from threading import Lock, current_thread
 from fasteners import InterProcessLock as IPLock, locked as locked_
 from sshpubkeys import SSHKey, InvalidKeyException
 
-from .common import GenericTableProvider
+from .common import GenericTableProvider, run_git
 
 
 def _my_id():
@@ -302,28 +301,15 @@ class SshKeysPlugin(GenericTableProvider):
     def _do_dump_key(self, user):
         printout([key[0] for key in self._getkeys(user)])
 
-    def _git(self, *args, **kwargs):
-        chdir = kwargs.pop('chdir', True)
-        prev_dir = os.getcwd()
+    def _git(self, *args, chdir=False):
+        self.log.debug('[%s] Calling `git %s` in %s' %
+                       (_my_id(), ' '.join(args), chdir or os.getcwd()))
         if chdir:
-            if os.path.exists(self.gitolite_admin):
-                os.chdir(self.gitolite_admin)
-            else:
-                return (-1, 'Cannot change directories to the gitolite-admin '
-                            'repository; it does not exist yet.')
-        try:
-            self.log.debug('[%s] Calling `git %s` in %s' %
-                           (_my_id(), ' '.join(args), os.getcwd()))
-            out = subprocess.check_output(('git',) + args,
-                                          stderr=subprocess.STDOUT)
-            code = 0
-        except subprocess.CalledProcessError as exc:
-            out, code = exc.output, exc.returncode
-        finally:
-            if chdir:
-                os.chdir(prev_dir)
+            chdir = self.gitolite_admin
+        else:
+            chdir = None
 
-        return code, out.decode('latin1')
+        return run_git(*args, chdir=chdir)
 
     # Gitolite exporting
     @locked

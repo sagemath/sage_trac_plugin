@@ -7,7 +7,7 @@ import os.path
 
 import pygit2
 
-from .common import GitBase, _signature_re, GenericTableProvider
+from .common import GitBase, _signature_re, GenericTableProvider, run_git
 
 from trac.core import implements, TracError
 from trac.config import Option
@@ -51,14 +51,14 @@ class GitMerger(GitBase, GenericTableProvider):
         self._signature = pygit2.Signature(m.group(1), m.group(2))
 
     def get_merge(self, commit):
-        ret = GitMerger._get_cache(self, commit)
+        ret = self._get_cache(commit)
         if ret is None:
             try:
                 ret = self._merge(commit)
             except pygit2.GitError:
                 ret = GIT_FAILED_MERGE
 
-            GitMerger._set_cache(self, commit, ret)
+            self._set_cache(commit, ret)
         return ret
 
     def _get_cache(self, commit):
@@ -96,8 +96,12 @@ class GitMerger(GitBase, GenericTableProvider):
 
         try:
             # libgit2/pygit2 are ridiculously slow when cloning local paths
-            subprocess.call(['git', 'clone', self.git_dir, tmpdir,
-                '--branch=%s'% self.master_branch])
+            ret, out = run_git('clone', self.git_dir, tmpdir,
+                               '--branch=%s' % self.master_branch)
+            if ret != 0:
+                raise TracError('Failure to create temporary git repository '
+                                'clone for merge preview of %s: %s' %
+                                (commit.hex, out))
 
             repo = pygit2.Repository(tmpdir)
             merge, _ = repo.merge_analysis(commit.oid)
@@ -149,7 +153,10 @@ class GitMerger(GitBase, GenericTableProvider):
                             [repo.head.get_object().oid, commit.oid], # parents
                         ))
         finally:
-            shutil.rmtree(tmpdir)
+            # If an error occurred in the git clone the tmpdir may no longer
+            # exist
+            if os.path.exists(tmpdir):
+                shutil.rmtree(tmpdir)
         return ret
 
     def getMerge(self, req, ticketnum):
