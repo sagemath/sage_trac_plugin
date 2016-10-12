@@ -86,6 +86,8 @@ class GitBase(Component):
     cgit_repo = Option('sage_trac', 'cgit_repository', '',
                        doc="name of the project's repository under cgit")
 
+    abstract = True
+
     def __init__(self, *args, **kwds):
         Component.__init__(self, *args, **kwds)
         if not self.git_dir or not os.path.exists(self.git_dir):
@@ -177,6 +179,7 @@ class GenericTableProvider(Component):
     """
 
     implements(IEnvironmentSetupParticipant)
+    abstract = True
 
     _schema = []
     _schema_version = None
