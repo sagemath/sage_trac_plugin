@@ -11,6 +11,7 @@ setup(
         package_data={
             'sage_trac': [
                 'templates/prefs_ssh_keys.html',
+                'htdocs/*.css'
                 ],
             },
         install_requires=['pygit2', 'TracXMLRPC', 'fasteners', 'sshpubkeys'],

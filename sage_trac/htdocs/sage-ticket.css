@@ -1,0 +1,159 @@
+:link, :visited, dt em, .milestone .info h2 em,
+#content.build h2.config :link, #content.build h2.config :visited,
+.plugin h3 a {
+ color: #22f;
+}
+
+/* blue ticket box */
+#ticket {
+ background-color: #eef;
+ border: 1px solid #42426f;
+}
+
+#ticket > h2 {
+ color: #42426f;
+}
+
+#ticket > h2 .trac-type {
+ color: #42426f;
+}
+
+#ticket table.properties {
+ border-top: 1px solid #42426f;
+}
+
+#ticket table.properties tr {
+ border-bottom: 1px dotted #dfdeee;
+}
+
+#ticket table.properties th {
+ color: #42426f;
+}
+
+#ticket table.properties th.missing {
+ color: #aaaadb;
+}
+
+#ticket table.properties .description {
+ border-top: 1px solid #42426f;
+}
+
+#ticket .description h3 {
+ border-bottom: 1px solid #42426f;
+ color: #42426f;
+}
+
+#ticket .date {
+ color: #42426f;
+}
+
+/* color code links to tickets */
+.closed {
+ color: #0c0;
+ font-weight: bold;
+ border-bottom: 1px solid;
+}
+
+#ticket > h2 .trac-id-closed {
+ color: #0c0;
+ border-bottom: 1px solid;
+ text-decoration: line-through;
+ font-size: 145%;
+ vertical-align: middle;
+ margin: 0 .4em 0 0;
+}
+
+.positive_review {
+ color: #0c0;
+ font-weight: bold;
+ border-bottom: 1px solid;
+}
+
+#ticket > h2 .trac-id-positive_review {
+ color: #0c0;
+ border-bottom: 1px solid;
+ font-size: 145%;
+ vertical-align: middle;
+ margin: 0 .4em 0 0;
+}
+
+#ticket .buildbot h2 a.positive_review {
+  color: #0c0;
+}
+
+.new {
+ color: #33f;
+ font-weight: bold;
+}
+
+#ticket > h2 .trac-id-new {
+ color: #33f;
+ font-size: 145%;
+ vertical-align: middle;
+ margin: 0 .4em 0 0;
+}
+
+.needs_info {
+ color: #c00;
+ font-weight: bold;
+}
+
+#ticket > h2 .trac-id-needs_info {
+ color: #c00;
+ font-size: 145%;
+ vertical-align: middle;
+ margin: 0 .4em 0 0;
+}
+
+.needs_work {
+ color: #c00;
+ font-weight: bold;
+}
+
+#ticket > h2 .trac-id-needs_work {
+ color: #c00;
+ font-size: 145%;
+ vertical-align: middle;
+ margin: 0 .4em 0 0;
+}
+
+#ticket .buildbot h2 a.needs_work {
+  color: #c00;
+}
+
+.needs_review {
+ color: #f90;
+ font-weight: bold;
+}
+
+#ticket > h2 .trac-id-needs_review {
+ color: #f90;
+ font-size: 145%;
+ vertical-align: middle;
+ margin: 0 .4em 0 0;
+}
+
+#ticket .buildbot h2 a.needs_review {
+  color: #f90;
+}
+
+blockquote.citation {
+ border-color: #44b;
+}
+
+.citation blockquote.citation {
+ border-color: #b44;
+}
+
+.citation .citation blockquote.citation {
+ border-color: #4b4;
+}
+
+.citation .citation .citation blockquote.citation {
+ border-color: #55c;
+}
+
+#ticket table.properties td[headers="h_commit"] {
+ text-overflow: ellipsis;
+ overflow: hidden;
+}

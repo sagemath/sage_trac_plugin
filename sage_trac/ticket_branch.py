@@ -6,11 +6,13 @@ from genshi.filters import Transformer
 from trac.core import *
 from trac.config import Option
 from trac.web.api import ITemplateStreamFilter
+from trac.web.chrome import add_stylesheet, ITemplateProvider
 
 from .common import GitBase, _signature_re
 
 from . import git_merger
 
+import pkg_resources
 import pygit2
 
 FILTER = Transformer('//td[@headers="h_branch"]')
@@ -26,7 +28,7 @@ class TicketBranch(git_merger.GitMerger):
     A Sage specific plugin which formats the ``branch`` field of a ticket and
     applies changes to the ``branch`` field to the git repository.
     """
-    implements(ITemplateStreamFilter)
+    implements(ITemplateStreamFilter, ITemplateProvider)
 
     release_manager_signature = Option(
             'sage_trac', 'release_manager_signature',
@@ -56,7 +58,8 @@ class TicketBranch(git_merger.GitMerger):
             return stream
 
         def error_filters(error):
-            return FILTER.attr("class", "needs_work"), FILTER.attr("title", error)
+            return (FILTER.attr("class", "needs_work"),
+                    FILTER.attr("title", error))
 
         def apply_filters(filters):
             s = stream
@@ -67,6 +70,8 @@ class TicketBranch(git_merger.GitMerger):
         def error(error, filters=()):
             filters = tuple(filters)+error_filters(error)
             return apply_filters(filters)
+
+        add_stylesheet(req, 'sage_trac/sage-ticket.css')
 
         branch = branch.strip()
 
@@ -140,3 +145,11 @@ class TicketBranch(git_merger.GitMerger):
                     base = self._git.get(base)
                 return base, commit
         return None, None
+
+    # ITemplateProvider methods
+    def get_templates_dirs(self):
+        return []
+
+    def get_htdocs_dirs(self):
+        return [('sage_trac',
+                 pkg_resources.resource_filename('sage_trac', 'htdocs'))]
