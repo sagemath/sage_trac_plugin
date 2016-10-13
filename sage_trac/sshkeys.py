@@ -486,6 +486,7 @@ class SshKeysPlugin(GenericTableProvider):
             # Then we migrate the contents of the old user_data_store table
             # (which was *only* used by this component) and drop that table
             db('DELETE FROM system WHERE name=%s', ('sage_trac',))
+            seen = set()
             with self.env.db_query as query:
                 # Use DISTINCT, as the real sage_trac environment database
                 # contains some duplicate keys in user_data_store for whatever
@@ -498,9 +499,20 @@ class SshKeysPlugin(GenericTableProvider):
                         key = key.strip()
                         if not key:
                             continue
+
+                        # Turns out even with DISTINCT there are some
+                        # duplicates that occur after stripping whitespace;
+                        # since it's difficult to do this in a manner portable
+                        # accross DB's we'll manually keep track of what
+                        # user/key pairs we've seen
+                        if (user, key) in seen:
+                            continue
+
                         db("""
                             INSERT INTO sage_trac_ssh_keys
                             VALUES (%s, %s, %s, %s)
                             """, (user, key, '', idx))
+
+                        seen.add((user, key))
 
             db('DROP TABLE user_data_store');
