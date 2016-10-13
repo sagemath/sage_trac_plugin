@@ -14,6 +14,7 @@ from genshi import Markup
 
 import os
 import shutil
+import sys
 
 from threading import Lock, current_thread
 from fasteners import InterProcessLock as IPLock, locked as locked_
@@ -171,7 +172,14 @@ class SshKeysPlugin(GenericTableProvider):
                                 lockfilename)
 
         self._locks = [IPLock(lockfile), Lock()]
-        self._init_gitolite_admin()
+
+        # This is something of a hack for now, but necessary.  The
+        # gitolite-admin clone should not be created when running trac-admin,
+        # as trac-admin is typically run as root (or some other user not
+        # www-data itself) so the gitolite-admin clone will use the wrong
+        # public key, and may have the wrong permissions
+        if sys.argv[0] != 'trac-admin':
+            self._init_gitolite_admin()
 
     @locked
     def _init_gitolite_admin(self):
