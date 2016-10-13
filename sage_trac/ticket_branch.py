@@ -51,6 +51,8 @@ class TicketBranch(git_merger.GitMerger):
         linked branch.
         """
         branch = data.get('ticket', {'branch': None})['branch']
+        base_branch = data.get('ticket', {'base_branch': None})['base_branch']
+
         if filename != 'ticket.html' or not branch:
             return stream
 
@@ -83,6 +85,11 @@ class TicketBranch(git_merger.GitMerger):
 
         branch = branch.strip()
 
+        if base_branch is not None:
+            base_branch = base_branch.strip()
+            if not base_branch:
+                base_branch = None
+
         filters = []
 
         try:
@@ -90,16 +97,27 @@ class TicketBranch(git_merger.GitMerger):
             if is_sha:
                 filters.append(
                         FILTER_TEXT.replace(branch.hex[:7]+' '))
+
+            if base_branch:
+                _, base_branch_commit = self.generic_lookup(base_branch)
+            else:
+                base_branch_commit = None
         except (KeyError, ValueError) as err:
             if err.message.find('Ambiguous') < 0:
                 return error("branch does not exist")
             else:
                 return error("sha1 hash is too ambiguous")
 
-        ret = self.peek_merge(branch)
-        merge_url, log_url = self.get_merge_url(req, branch, ret)
+        ret = self.peek_merge(branch, base_branch=base_branch)
+        merge_url, log_url = self.get_merge_url(req, branch, ret,
+                                                base=base_branch_commit)
+
         # For the merge-url just always pass through the git-merger frontend
-        git_merger_url = req.abs_href('/git-merger/' + branch.hex)
+        params = []
+        if base_branch != self.master_branch:
+            params.append(('base', base_branch))
+
+        git_merger_url = req.abs_href('/git-merger/' + branch.hex, params)
 
         if ret == git_merger.GIT_UPTODATE:
             if log_url is not None:

@@ -58,25 +58,37 @@ class GitMerger(GitBase, GenericTableProvider):
 
         self._signature = pygit2.Signature(m.group(1), m.group(2))
 
-    def peek_merge(self, commit):
+    def peek_merge(self, commit, base_branch=None):
         """
         See if the given commit already has a cached merge result.
         """
 
-        return self._get_cache(commit)
+        if not base_branch:
+            base_branch = self.master_branch
+            base = self.master
+        else:
+            base = self.generic_lookup(base_branch)[1]
 
-    def get_merge(self, commit):
-        ret = self._get_cache(commit)
+        return self._get_cache(commit, base)
+
+    def get_merge(self, commit, base_branch=None):
+        if not base_branch:
+            base_branch = self.master_branch
+            base = self.master
+        else:
+            base = self.generic_lookup(base_branch)[1]
+
+        ret = self._get_cache(commit, base)
         if ret is None:
             try:
-                ret = self._merge(commit)
+                ret = self._merge(commit, base_branch)
             except pygit2.GitError:
                 ret = GIT_FAILED_MERGE
 
-            self._set_cache(commit, ret)
+            self._set_cache(commit, base, ret)
         return ret
 
-    def _get_cache(self, commit):
+    def _get_cache(self, commit, base):
         with self.env.db_query as query:
             cached = list(query("""
                 SELECT base, tmp FROM "merge_store" WHERE target=%s
@@ -85,35 +97,36 @@ class GitMerger(GitBase, GenericTableProvider):
             if not cached:
                 return None
 
-            base, tmp = cached[0]
+            cached_base, cached_tmp = cached[0]
 
-            if base != self.master.hex:
+            if cached_base != base.hex:
                 with self.env.db_transaction as tx:
                     tx("DELETE FROM merge_store WHERE target=%s",
                        (commit.hex,))
                 return None
 
-        if tmp in GIT_SPECIAL_MERGES:
-            return tmp
+        if cached_tmp in GIT_SPECIAL_MERGES:
+            return cached_tmp
 
-        return self._git.get(tmp)
+        return self._git.get(cached_tmp)
 
-    def _set_cache(self, commit, tmp):
+    def _set_cache(self, commit, base, tmp):
         with self.env.db_transaction as db:
             cursor = db.cursor()
-            cursor.execute('DELETE FROM "merge_store" WHERE target=%s', (commit.hex,))
+            cursor.execute('DELETE FROM "merge_store" WHERE target=%s',
+                           (commit.hex,))
             if tmp not in GIT_SPECIAL_MERGES:
                 tmp = tmp.hex
             cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)',
-                    (commit.hex, self.master.hex, tmp))
+                    (commit.hex, base.hex, tmp))
 
-    def _merge(self, commit):
+    def _merge(self, commit, base_branch):
         tmpdir = tempfile.mkdtemp()
 
         try:
             # libgit2/pygit2 are ridiculously slow when cloning local paths
             ret, out = run_git('clone', self.git_dir, tmpdir,
-                               '--branch=%s' % self.master_branch)
+                               '--branch=%s' % base_branch)
             if ret != 0:
                 raise TracError('Failure to create temporary git repository '
                                 'clone for merge preview of %s: %s' %
@@ -175,37 +188,43 @@ class GitMerger(GitBase, GenericTableProvider):
                 shutil.rmtree(tmpdir)
         return ret
 
-    def find_base_and_merge(self, branch):
-        walker = self._git.walk(self.master.oid,
+    def find_base_and_merge(self, branch, base=None):
+        if base is None:
+            base = self.master
+
+        walker = self._git.walk(base.oid,
                 pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE)
         walker.hide(branch.oid)
         for commit in walker:
             if (branch.oid in (p.oid for p in commit.parents) and
                     signature_eq(commit.author, self._release_signature)):
-                base = None
+                found_base = None
                 for p in commit.parents:
                     if p.oid == branch.oid:
                         pass
-                    elif base is None:
-                        base = p.oid
+                    elif found_base is None:
+                        found_base = p.oid
                     else:
-                        base = self._git.merge_base(base, p.oid)
-                if base is not None:
-                    base = self._git.get(base)
-                return base, commit
+                        found_base = self._git.merge_base(found_base, p.oid)
+                if found_base is not None:
+                    found_base = self._git.get(base)
+                return found_base, commit
         return None, None
 
-    def get_merge_url(self, req, branch, merge_result=None):
+    def get_merge_url(self, req, branch, merge_result=None, base=None):
         """
         Return the appropriate URL for a merge preview (or lack thereof),
         along with a URL for the log of commits merged.
         """
 
+        if base is None:
+            base = self.master
+
         if merge_result is None:
             merge_result = self.peek_merge(branch)
 
         if merge_result == GIT_UPTODATE:
-            base, merge = self.find_base_and_merge(branch)
+            log_base, merge = self.find_base_and_merge(branch, base=base)
 
             if merge is None:
                 merge_url = None
@@ -215,14 +234,14 @@ class GitMerger(GitBase, GenericTableProvider):
             if base is None:
                 log_url = None
             else:
-                log_url = self.log_url(base, branch)
+                log_url = self.log_url(log_base, branch)
         else:
-            log_url = self.log_url(self.master, branch)
+            log_url = self.log_url(base, branch)
 
             if merge_result == GIT_FAILED_MERGE:
                 merge_url = None
             elif merge_result == GIT_FASTFORWARD:
-                merge_url = self.diff_url(self.master, branch)
+                merge_url = self.diff_url(base, branch)
             elif merge_result is not None:
                 # Should be a SHA1 hash
                 merge_url = self.diff_url(merge_result)
@@ -239,7 +258,13 @@ class GitMerger(GitBase, GenericTableProvider):
             commit = self.generic_lookup(ticket['branch'].strip())[1]
         except (KeyError, ValueError):
             return ''
-        merge = self.get_merge(commit)
+
+        try:
+            base_branch = ticket['base_branch'].strip()
+        except KeyError:
+            base_branch = None
+
+        merge = self.get_merge(commit, base_branch=base_branch)
         if merge in GIT_SPECIAL_MERGES:
             return merge
         return merge.hex
@@ -280,13 +305,23 @@ class GitMerger(GitBase, GenericTableProvider):
             raise TracError('%s is not the hash for a known commit in '
                             'the repository' % commit_hex)
 
-        merge = self.get_merge(commit)
+        base_branch = req.args.get('base', '').strip()
+        if base_branch:
+            try:
+                base = self.generic_lookup(base_branch)[1]
+            except (KeyError, ValueError):
+                raise TracError("'%s' is not the name of a known branch "
+                                "in the repository" % base_branch)
+        else:
+            base_branch = base = None
+
+        merge = self.get_merge(commit, base_branch=base_branch)
 
         if merge == GIT_FAILED_MERGE:
             add_warning(req, 'Merge failed for %s' % commit_hex)
             req.redirect(referer)
 
-        merge_url, _ = self.get_merge_url(req, commit, merge)
+        merge_url, _ = self.get_merge_url(req, commit, merge, base=base)
 
         if merge_url is None:
             # TODO: Maybe issue a notice about why this is happening
