@@ -96,8 +96,10 @@ class TicketBranch(git_merger.GitMerger):
             else:
                 return error("sha1 hash is too ambiguous")
 
-        ret = self.get_merge(branch)
+        ret = self.peek_merge(branch)
         merge_url, log_url = self.get_merge_url(req, branch, ret)
+        # For the merge-url just always pass through the git-merger frontend
+        git_merger_url = req.abs_href('/git-merger/' + branch.hex)
 
         if ret == git_merger.GIT_UPTODATE:
             if log_url is not None:
@@ -106,7 +108,7 @@ class TicketBranch(git_merger.GitMerger):
             if merge_url is None:
                 filters.append(merge_link())
             else:
-                filters.append(merge_link(merge_url))
+                filters.append(merge_link(git_merger_url))
 
             filters.append(
                     FILTER.attr("title", "already merged"))
@@ -116,13 +118,18 @@ class TicketBranch(git_merger.GitMerger):
             if ret == git_merger.GIT_FAILED_MERGE:
                 return error("trac's automerging failed", filters)
             elif ret == git_merger.GIT_FASTFORWARD:
-                filters.append(merge_link(merge_url))
+                filters.append(merge_link(git_merger_url))
+                filters.append(
+                        FILTER.attr("title", "merges cleanly (fast forward)"))
             elif ret is not None:
-                filters.append(merge_link(merge_url))
+                filters.append(merge_link(git_merger_url))
                 filters.append(
                         FILTER.attr("title", "merges cleanly"))
             else:
-                filters.append(merge_link(merge_url, 'needs_review'))
+                filters.append(merge_link(git_merger_url, 'needs_review'))
+                filters.append(
+                        FILTER.attr("title", "no merge preview yet "
+                                             "(click to generate)"))
 
         return apply_filters(filters)
 

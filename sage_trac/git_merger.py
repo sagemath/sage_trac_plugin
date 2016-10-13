@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import re
 import shutil
 import subprocess
 import tempfile
@@ -14,6 +15,8 @@ from trac.core import implements, TracError
 from trac.config import Option
 from trac.db.schema import Table, Column
 from trac.ticket.model import Ticket
+from trac.web import IRequestHandler
+from trac.web.chrome import add_warning
 from tracrpc.api import IXMLRPCHandler
 
 GIT_SPECIAL_MERGES = ('GIT_FASTFORWARD', 'GIT_UPTODATE', 'GIT_FAILED_MERGE')
@@ -26,7 +29,7 @@ def signature_eq(sig1, sig2):
 
 
 class GitMerger(GitBase, GenericTableProvider):
-    implements(IXMLRPCHandler)
+    implements(IXMLRPCHandler, IRequestHandler)
 
     trac_signature = Option(
             'sage_trac', 'trac_signature', 'trac <trac@sagemath.org>',
@@ -207,8 +210,7 @@ class GitMerger(GitBase, GenericTableProvider):
             if merge is None:
                 merge_url = None
             else:
-                merge_url = req.abs_href('/git-merger/' +
-                                         hexify(branch))
+                merge_url = self.commit_url(merge)
 
             if base is None:
                 log_url = None
@@ -225,7 +227,8 @@ class GitMerger(GitBase, GenericTableProvider):
                 # Should be a SHA1 hash
                 merge_url = self.diff_url(merge_result)
             else:
-                merge_url = req.abs_href('/git-merger/' + hexify(branch))
+                # ???
+                merge_url = None
 
         return merge_url, log_url
 
@@ -247,3 +250,47 @@ class GitMerger(GitBase, GenericTableProvider):
 
     def xmlrpc_methods(self):
         yield (None, ((str, int),), self.getMerge)
+
+    # IRequestHandler methods
+    def match_request(self, req):
+        match = re.match(r'/git-merger/(.+)$', req.path_info)
+        if match:
+            req.args['commit'] = match.group(1)
+            return True
+
+    def process_request(self, req):
+        # Generate the merge preview for the specified commit and
+        # redirect either directly to the merge preview if successful, or
+        # back to the previous page if unsuccessful
+        referer = req.get_header('Referer')
+        if not referer:
+            referer = req.base_path
+
+        if 'commit' not in req.args:
+            raise TracError('No commit specified for merge preview')
+
+        commit_hex = req.args['commit']
+
+        try:
+            commit = self._git.get(commit_hex)
+        except ValueError:
+            commit = None
+
+        if not isinstance(commit, pygit2.Commit):
+            raise TracError('%s is not the hash for a known commit in '
+                            'the repository' % commit_hex)
+
+        merge = self.get_merge(commit)
+
+        if merge == GIT_FAILED_MERGE:
+            add_warning(req, 'Merge failed for %s' % commit_hex)
+            req.redirect(referer)
+
+        merge_url, _ = self.get_merge_url(req, commit, merge)
+
+        if merge_url is None:
+            # TODO: Maybe issue a notice about why this is happening
+            # (I'm not even sure how this can happen??)
+            req.redirect(referer)
+        else:
+            req.redirect(merge_url)
