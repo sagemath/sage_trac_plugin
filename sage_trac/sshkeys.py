@@ -146,12 +146,12 @@ class SshKeysPlugin(GenericTableProvider):
                                     'gitolite-admin, directly under the '
                                     'trac environment path')
     _schema = [
-        Table('sage_trac_ssh_keys', key=('user', 'key'))[
-            Column('user'),
+        Table('sage_trac_ssh_keys', key=('username', 'key'))[
+            Column('username'),
             Column('key'),
             Column('title'),  # currently unused, but included in anticipation
             Column('key_order', type='int'),
-            Index(('user',))
+            Index(('username',))
         ]
     ]
 
@@ -386,15 +386,15 @@ class SshKeysPlugin(GenericTableProvider):
     # general functionality
     def _listusers(self):
         for user, in self.env.db_query("""
-                SELECT DISTINCT user FROM sage_trac_ssh_keys
-                ORDER BY user"""):
+                SELECT DISTINCT username FROM sage_trac_ssh_keys
+                ORDER BY username"""):
             yield user
 
     def _getkeys(self, user):
         for key, title in self.env.db_query("""
                 SELECT key, title from sage_trac_ssh_keys
-                WHERE user=%s
-                ORDER BY key_order"""):
+                WHERE username=%s
+                ORDER BY key_order""", (user,)):
             yield key, title
 
     def _setkeys(self, user, keys):
@@ -404,7 +404,7 @@ class SshKeysPlugin(GenericTableProvider):
             # Since _setkeys is passed a full list of keys right now the
             # simplest thing to do is delete all existing entries and insert
             # new ones
-            db('DELETE FROM "sage_trac_ssh_keys" WHERE "user"=%s', (user,))
+            db('DELETE FROM "sage_trac_ssh_keys" WHERE username=%s', (user,))
             for idx, key in enumerate(keys):
                 db('INSERT INTO "sage_trac_ssh_keys" VALUES (%s, %s, %s, %s)',
                    (user, key, '', idx))
@@ -492,7 +492,7 @@ class SshKeysPlugin(GenericTableProvider):
                 # contains some duplicate keys in user_data_store for whatever
                 # reason
                 for user, value in query("""
-                        SELECT DISTINCT user, value FROM user_data_store
+                        SELECT DISTINCT "user", value FROM user_data_store
                         WHERE key=%s
                         """, ('ssh_keys',)):
                     for idx, key in enumerate(value.splitlines()):
