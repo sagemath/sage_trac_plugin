@@ -487,8 +487,12 @@ class SshKeysPlugin(GenericTableProvider):
             # (which was *only* used by this component) and drop that table
             db('DELETE FROM system WHERE name=%s', ('sage_trac',))
             with self.env.db_query as query:
+                # Use DISTINCT, as the real sage_trac environment database
+                # contains some duplicate keys in user_data_store for whatever
+                # reason
                 for user, value in query("""
-                        SELECT user, value FROM user_data_store WHERE key=%s
+                        SELECT DISTINCT user, value FROM user_data_store
+                        WHERE key=%s
                         """, ('ssh_keys',)):
                     for idx, key in enumerate(value.splitlines()):
                         key = key.strip()
