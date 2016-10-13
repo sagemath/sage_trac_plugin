@@ -301,7 +301,8 @@ class SshKeysPlugin(GenericTableProvider):
     def _do_dump_key(self, user):
         printout([key[0] for key in self._getkeys(user)])
 
-    def _git(self, *args, chdir=False):
+    def _git(self, *args, **kwargs):
+        chdir = kwargs.get('chdir')
         self.log.debug('[%s] Calling `git %s` in %s' %
                        (_my_id(), ' '.join(args), chdir or os.getcwd()))
         if chdir:
