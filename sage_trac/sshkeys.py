@@ -310,13 +310,9 @@ class SshKeysPlugin(GenericTableProvider):
         printout([key[0] for key in self._getkeys(user)])
 
     def _git(self, *args, **kwargs):
-        chdir = kwargs.get('chdir')
+        chdir = kwargs.get('chdir', self.gitolite_admin)
         self.log.debug('[%s] Calling `git %s` in %s' %
                        (_my_id(), ' '.join(args), chdir or os.getcwd()))
-        if chdir:
-            chdir = self.gitolite_admin
-        else:
-            chdir = None
 
         return run_git(*args, chdir=chdir)
 

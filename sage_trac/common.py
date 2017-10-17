@@ -40,7 +40,7 @@ def run_git(*args, **kwargs):
     chdir = kwargs.pop('chdir', None)
 
     prev_dir = os.getcwd()
-    if chdir is not None:
+    if chdir:
         if os.path.isdir(chdir):
             os.chdir(chdir)
         else:
