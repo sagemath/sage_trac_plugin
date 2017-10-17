@@ -14,6 +14,7 @@ from genshi import Markup
 
 import os
 import shutil
+import socket
 import sys
 
 from threading import Lock, current_thread
@@ -145,6 +146,18 @@ class SshKeysPlugin(GenericTableProvider):
                                     'manage SSH keys (default: '
                                     'gitolite-admin, directly under the '
                                     'trac environment path')
+
+    gitolite_author_name = Option(
+            'sage_trac', 'gitolite_author', 'trac',
+             doc='author name to use when committing updates to the '
+                 'gitolite-admin repository')
+
+    gitolite_author_email = Option(
+            'sage_trac', 'gitolite_email',
+            'trac@{0}'.format(socket.gethostname()),
+             doc='author e-mail to use when committing updates to the '
+                 'gitolite-admin repository')
+
     _schema = [
         Table('sage_trac_ssh_keys', key=('username', 'key'))[
             Column('username'),
@@ -230,8 +243,20 @@ class SshKeysPlugin(GenericTableProvider):
             raise TracError(
                 'Failed to clone gitolite-admin repository: '
                 '{0}'.format(out))
+        else:
+            self._configure_gitolite_admin()
 
-            return
+    def _configure_gitolite_admin(self):
+        ret, out = self._git('config', '--local', 'user.name',
+                             self.gitolite_author_name)
+        if not ret:
+            ret, out = self._git('config', '--local', 'user.email',
+                                 self.gitolite_author_email)
+
+        if ret != 0:
+            raise TracError(
+                'Error configuring the gitolite-admin repository: '
+                '{0}'.format(out))
 
     def _cleanup_gitolite_admin(self):
         # Clean up any uncommitted files or changes; this suggests
@@ -244,6 +269,8 @@ class SshKeysPlugin(GenericTableProvider):
             raise TracError(
                 'Error cleaning up the gitolite-admin repository: '
                 '{0}'.format(out))
+        else:
+            self._configure_gitolite_admin()
 
     def _update_gitolite_admin(self):
         # Fetch latest changes from the main repository and reset
