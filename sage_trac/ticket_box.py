@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+import random
+
 from genshi.builder import tag
 from genshi.core import TEXT
 from genshi.filters import Transformer
@@ -16,8 +18,10 @@ from . import git_merger
 import pkg_resources
 import pygit2
 
-FILTER = Transformer('//td[@headers="h_branch"]')
-FILTER_TEXT = Transformer('//td[@headers="h_branch"]/text()')
+FILTER_DATE = Transformer('//div[@id="ticket"]/div[@class="date"]')
+FILTER_ID = Transformer('//div[@id="ticket"]/h2/a[@class="trac-id"]')
+FILTER_BRANCH = Transformer('//td[@headers="h_branch"]')
+FILTER_BRANCH_TEXT = Transformer('//td[@headers="h_branch"]/text()')
 
 
 class TicketBox(git_merger.GitMerger):
@@ -27,6 +31,10 @@ class TicketBox(git_merger.GitMerger):
 
     * Formats the ``branch`` field of a ticket and applies changes to the
     ``branch`` field to the git repository.
+
+    * Adds colorized formatting to the ticket ID based on the ticket status.
+
+    * Adds the patchbot status icons.
     """
     implements(ITemplateStreamFilter, ITemplateProvider)
 
@@ -36,6 +44,15 @@ class TicketBox(git_merger.GitMerger):
             doc='signature to use on commits (especially merges) made '
                 'through action of the project release manager (default: '
                 '"Release Manager <release@sagemath.org>)')
+
+    patchbot_url = Option(
+            'sage_trac', 'patchbot_url', ''
+            'base URL of the Sage patchbot server from which to show '
+            'the ticket build status')
+
+    # Templates on which this filter should be applied
+    _templates = set(['ticket_change.html', 'ticket_preview.html',
+                      'ticket.html'])
 
     def __init__(self):
         super(TicketBox, self).__init__()
@@ -53,29 +70,36 @@ class TicketBox(git_merger.GitMerger):
         Reformat the ``branch`` field of a ticket to show the history of the
         linked branch.
         """
-        branch = data.get('ticket', {'branch': None})['branch']
-        base_branch = data.get('ticket', {'base_branch': None})['base_branch']
 
-        if filename == 'ticket.html':
+        ticket = data.get('ticket')
+
+        if filename in self._templates and ticket:
             add_stylesheet(req, 'sage_trac/sage-ticket.css')
-
-        if filename != 'ticket.html' or not branch:
+        else:
             return stream
 
-        def merge_link(url=None, class_='positive_review'):
-            if url is None:
-                return FILTER.attr("class", class_)
+        filters = [
+            # Add additional color coding to the ticket ID
+            FILTER_ID.attr('class', 'trac-id-{0}'.format(ticket['status'])),
+        ]
 
-            return FILTER_TEXT.map(unicode.strip, TEXT).wrap(
-                    tag.a(class_=class_, href=url))
+        if self.patchbot_url:
+            # Add the patchbot status icons if a patchbot URL was given
+            nonce = hex(random.randint(0, 1 << 60))
+            ticket_url = '{0}/ticket/{1}'.format(
+                    self.patchbot_url.rstrip('/'), ticket.id)
+            base_url = '{0}/base.svg?nonce={1}'.format(ticket_url, nonce)
+            status_url = '{0}/status.svg?nonce={1}'.format(ticket_url, nonce)
+            elem = tag.div(
+                tag.a(
+                    tag.img(src=base_url, border=0, height=32),
+                    tag.img(src=status_url, border=0, height=32),
+                    href=ticket_url),
+                class_='date')
 
-        def commits_link(url):
-            return FILTER.append(tag.span(' ')).\
-                    append(tag.a('(Commits)', href=url))
+            filters.append(FILTER_DATE.after(elem))
 
-        def error_filters(error):
-            return (FILTER.attr("class", "needs_work"),
-                    FILTER.attr("title", error))
+        filters.extend(self._get_branch_filters(req, ticket))
 
         def apply_filters(filters):
             s = stream
@@ -83,9 +107,38 @@ class TicketBox(git_merger.GitMerger):
                 s |= filter
             return s
 
-        def error(error, filters=()):
-            filters = tuple(filters)+error_filters(error)
-            return apply_filters(filters)
+        return apply_filters(filters)
+
+    def _get_branch_filters(self, req, ticket):
+        """
+        Return a list of filters to apply to the branch field, if it is
+        set.
+        """
+
+        branch = ticket['branch']
+        base_branch = ticket['base_branch']
+        filters = []
+
+        if not branch:
+            return filters
+
+        def merge_link(url=None, class_='positive_review'):
+            if url is None:
+                return FILTER_BRANCH.attr("class", class_)
+
+            return FILTER_BRANCH_TEXT.map(unicode.strip, TEXT).wrap(
+                    tag.a(class_=class_, href=url))
+
+        def commits_link(url):
+            return FILTER_BRANCH.append(tag.span(' ')).\
+                    append(tag.a('(Commits)', href=url))
+
+        def error_filters(error):
+            return [FILTER_BRANCH.attr("class", "needs_work"),
+                    FILTER_BRANCH.attr("title", error)]
+
+        def error(error, filters=[]):
+            return filters + error_filters(error)
 
         branch = branch.strip()
 
@@ -94,13 +147,11 @@ class TicketBox(git_merger.GitMerger):
             if not base_branch:
                 base_branch = None
 
-        filters = []
-
         try:
             is_sha, branch = self.generic_lookup(branch)
             if is_sha:
                 filters.append(
-                        FILTER_TEXT.replace(branch.hex[:7]+' '))
+                        FILTER_BRANCH_TEXT.replace(branch.hex[:7]+' '))
 
             if base_branch:
                 _, base_branch_commit = self.generic_lookup(base_branch)
@@ -133,7 +184,7 @@ class TicketBox(git_merger.GitMerger):
                 filters.append(merge_link(git_merger_url))
 
             filters.append(
-                    FILTER.attr("title", "already merged"))
+                    FILTER_BRANCH.attr("title", "already merged"))
         else:
             filters.append(commits_link(log_url))
 
@@ -142,18 +193,18 @@ class TicketBox(git_merger.GitMerger):
             elif ret == git_merger.GIT_FASTFORWARD:
                 filters.append(merge_link(git_merger_url))
                 filters.append(
-                        FILTER.attr("title", "merges cleanly (fast forward)"))
+                        FILTER_BRANCH.attr("title", "merges cleanly (fast forward)"))
             elif ret is not None:
                 filters.append(merge_link(git_merger_url))
                 filters.append(
-                        FILTER.attr("title", "merges cleanly"))
+                        FILTER_BRANCH.attr("title", "merges cleanly"))
             else:
                 filters.append(merge_link(git_merger_url, 'needs_review'))
                 filters.append(
-                        FILTER.attr("title", "no merge preview yet "
-                                             "(click to generate)"))
+                        FILTER_BRANCH.attr("title", "no merge preview yet "
+                                                    "(click to generate)"))
 
-        return apply_filters(filters)
+        return filters
 
     # ITemplateProvider methods
     def get_templates_dirs(self):
