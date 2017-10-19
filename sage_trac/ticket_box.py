@@ -56,6 +56,9 @@ class TicketBox(git_merger.GitMerger):
         branch = data.get('ticket', {'branch': None})['branch']
         base_branch = data.get('ticket', {'base_branch': None})['base_branch']
 
+        if filename == 'ticket.html':
+            add_stylesheet(req, 'sage_trac/sage-ticket.css')
+
         if filename != 'ticket.html' or not branch:
             return stream
 
