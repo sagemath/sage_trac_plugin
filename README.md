@@ -35,7 +35,7 @@ trac.sagemath.org and have gone unmaintained for a while.
 The `sage_trac` plugin currently consists of five main components:
 
 * [SshKeysPlugin](#SshKeysPlugin)
-* [TicketBranch](#TicketBranch)
+* [TicketBox](#TicketBox)
 * [TicketLog](#TicketLog)
 * [BranchSearchModule](#BranchSearchModule)
 * [BuildBotHook](#BuildBotHook) (broken)
@@ -140,7 +140,7 @@ separate anymore.
 This component *must* be enabled in order for `SshKeysPlugin` to work.
 
 
-### TicketBranch
+### TicketBox
 
 
 ### TicketLog

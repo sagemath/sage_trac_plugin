@@ -22,7 +22,7 @@ setup(
                 'sage_trac.buildbot_hook = sage_trac.buildbot_hook',
                 'sage_trac.search_branch = sage_trac.search_branch',
                 'sage_trac.sshkeys = sage_trac.sshkeys',
-                'sage_trac.ticket_branch = sage_trac.ticket_branch',
+                'sage_trac.ticket_box = sage_trac.ticket_box',
                 'sage_trac.ticket_log = sage_trac.ticket_log',
                 ]
             },

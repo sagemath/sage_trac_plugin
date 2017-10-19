@@ -20,10 +20,13 @@ FILTER = Transformer('//td[@headers="h_branch"]')
 FILTER_TEXT = Transformer('//td[@headers="h_branch"]/text()')
 
 
-class TicketBranch(git_merger.GitMerger):
+class TicketBox(git_merger.GitMerger):
     """
-    A Sage specific plugin which formats the ``branch`` field of a ticket and
-    applies changes to the ``branch`` field to the git repository.
+    A Sage-specific plugin which customizes the ticket box in various
+    ways:
+
+    * Formats the ``branch`` field of a ticket and applies changes to the
+    ``branch`` field to the git repository.
     """
     implements(ITemplateStreamFilter, ITemplateProvider)
 
@@ -35,7 +38,7 @@ class TicketBranch(git_merger.GitMerger):
                 '"Release Manager <release@sagemath.org>)')
 
     def __init__(self):
-        super(TicketBranch, self).__init__()
+        super(TicketBox, self).__init__()
 
         m = _signature_re.match(self.release_manager_signature)
         if not m:
