@@ -1,4 +1,4 @@
-0.3.4 (unreleased)
+1.0.0 (unreleased)
 ==================
 
 * Nothing changed yet.
