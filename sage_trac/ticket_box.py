@@ -87,8 +87,6 @@ class TicketBox(git_merger.GitMerger):
             filters = tuple(filters)+error_filters(error)
             return apply_filters(filters)
 
-        add_stylesheet(req, 'sage_trac/sage-ticket.css')
-
         branch = branch.strip()
 
         if base_branch is not None:
