@@ -157,3 +157,8 @@ blockquote.citation {
  text-overflow: ellipsis;
  overflow: hidden;
 }
+
+/* Fix to make long branch names wrap properly */
+#ticket table.properties td[headers="h_branch"] {
+ word-wrap: break-word;
+}
