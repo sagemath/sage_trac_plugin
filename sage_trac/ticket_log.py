@@ -44,9 +44,13 @@ class TicketLog(GitBase):
         for b in ignore:
             c = self._git.lookup_branch(b)
             if c is None:
-                c = self._git.get(b)
+                try:
+                    c = self._git.get(b)
+                except ValueError:
+                    continue
             else:
                 c = c.get_object()
+
             if c is not None:
                 walker.hide(c.oid)
 
