@@ -46,7 +46,7 @@ class TicketBox(git_merger.GitMerger):
                 '"Release Manager <release@sagemath.org>)')
 
     patchbot_url = Option(
-            'sage_trac', 'patchbot_url', ''
+            'sage_trac', 'patchbot_url', '',
             'base URL of the Sage patchbot server from which to show '
             'the ticket build status')
 
