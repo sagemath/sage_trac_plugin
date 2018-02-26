@@ -88,13 +88,16 @@ class GitMerger(GitBase, GenericTableProvider):
             self._set_cache(commit, base, ret)
         return ret
 
-    def _get_cache(self, commit, base):
+    def _get_cache(self, commit, base=None):
         with self.env.db_query as query:
             cached = list(query("""
                 SELECT base, tmp FROM "merge_store" WHERE target=%s
                 """, (commit.hex,)))
 
             if not cached:
+                return None
+
+            if base is None:
                 return None
 
             cached_base, cached_tmp = cached[0]

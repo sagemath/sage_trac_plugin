@@ -164,15 +164,21 @@ class TicketBox(git_merger.GitMerger):
                 return error("sha1 hash is too ambiguous")
 
         ret = self.peek_merge(branch, base_branch=base_branch)
-        merge_url, log_url = self.get_merge_url(req, branch, ret,
-                                                base=base_branch_commit)
+        if base_branch_commit:
+            merge_url, log_url = self.get_merge_url(req, branch, ret,
+                                                    base=base_branch_commit)
+        else:
+            merge_url = log_url = None
 
         # For the merge-url just always pass through the git-merger frontend
         params = []
         if base_branch != self.master_branch:
             params.append(('base', base_branch))
 
-        git_merger_url = req.abs_href('/git-merger/' + branch.hex, params)
+        if branch:
+            git_merger_url = req.abs_href('/git-merger/' + branch.hex, params)
+        else:
+            git_merger_url = None
 
         if ret == git_merger.GIT_UPTODATE:
             if log_url is not None:
@@ -190,7 +196,11 @@ class TicketBox(git_merger.GitMerger):
 
             if ret == git_merger.GIT_FAILED_MERGE:
                 return error("trac's automerging failed", filters)
-            elif ret == git_merger.GIT_FASTFORWARD:
+            elif git_merger_url is None:
+                # Shortcut in case no git merge was generated
+                return filters
+
+            if ret == git_merger.GIT_FASTFORWARD:
                 filters.append(merge_link(git_merger_url))
                 filters.append(
                         FILTER_BRANCH.attr("title", "merges cleanly (fast forward)"))

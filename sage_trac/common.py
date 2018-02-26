@@ -119,7 +119,10 @@ class GitBase(Component):
 
     @property
     def master(self):
-        return self._git.lookup_branch(self.master_branch).get_object()
+        b = self._git.lookup_branch(self.master_branch)
+        if b is not None:
+            return b.get_object()
+        return b
 
     def generic_lookup(self, ref_or_sha):
         for s in ('refs/heads/', 'refs/tags/'):

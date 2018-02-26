@@ -30,6 +30,10 @@
 * Fixed more bugs with management of the gitolite-admin repository clone, in
   particular during Environment startup.
 
+* Fixed crashes that could occur in the unlikely case that the configured
+  master branch for the repository does not actually exist in the
+  repository.
+
 
 0.3.3 (2016-07-08)
 ==================
