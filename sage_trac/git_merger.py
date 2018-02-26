@@ -102,16 +102,23 @@ class GitMerger(GitBase, GenericTableProvider):
 
             cached_base, cached_tmp = cached[0]
 
-            if cached_base != base.hex:
+            if cached_tmp in GIT_SPECIAL_MERGES:
+                cached_obj = cached_tmp
+            else:
+                # Perhaps the cached merge commit no longer exists (e.g.
+                # because has no parents maybe it got purged during garbage
+                # collection on the repo), so we check that it still exists in
+                # the repo and if not we just invalidate the cache in this case
+                # and generate a new merge
+                cached_obj = self._git.get(cached_tmp)
+
+            if cached_base != base.hex or cached_obj is None:
                 with self.env.db_transaction as tx:
                     tx("DELETE FROM merge_store WHERE target=%s",
                        (commit.hex,))
                 return None
 
-        if cached_tmp in GIT_SPECIAL_MERGES:
-            return cached_tmp
-
-        return self._git.get(cached_tmp)
+        return cached_obj
 
     def _set_cache(self, commit, base, tmp):
         with self.env.db_transaction as db:
