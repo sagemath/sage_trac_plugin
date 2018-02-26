@@ -159,7 +159,7 @@ class SshKeysPlugin(GenericTableProvider):
                  'gitolite-admin repository')
 
     _schema = [
-        Table('sage_trac_ssh_keys', key=('username', 'key'))[
+        Table('sage_trac_ssh_keys', key=('username', 'key_order'))[
             Column('username'),
             Column('key'),
             Column('title'),  # currently unused, but included in anticipation
