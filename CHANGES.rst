@@ -38,6 +38,9 @@
   master branch for the repository does not actually exist in the
   repository.
 
+* Fixed the SSH keys plugin to prevent multiple copies of the same key on
+  different accounts.
+
 
 0.3.3 (2016-07-08)
 ==================

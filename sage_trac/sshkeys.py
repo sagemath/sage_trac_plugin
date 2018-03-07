@@ -468,6 +468,16 @@ class SshKeysPlugin(GenericTableProvider):
                        'Make sure you copy-and-pasted it correctly and that '
                        'there is no spurious whitespace in the key.')
 
+            duplicates = self.env.db_query("""
+                SELECT COUNT(*) FROM ticket sage_trac_ssh_keys
+                                WHERE key=%s
+             """, (key,))[0][0]
+
+            if duplicates > 0:
+                msg = ('The same key as key #{0} is already in use by '
+                       'this or another account: {1} One SSH key may '
+                       'only be associated with one account.')
+
             if msg:
                 add_warning(req, Markup(msg.format(idx + 1, wrap_key(key))))
                 keys.remove(key)
