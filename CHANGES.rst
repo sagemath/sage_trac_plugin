@@ -1,4 +1,4 @@
-1.0.1 (unreleased)
+1.0.1 (2018-05-11)
 ==================
 
 * Fix crash when updating cached merge previews for the same commit.
