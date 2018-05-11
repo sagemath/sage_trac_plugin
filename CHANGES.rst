@@ -1,4 +1,4 @@
-1.0.2 (unreleased)
+1.0.2 (2018-05-11)
 ==================
 
 * Fix generation of commit log URLs for ticket branches.
