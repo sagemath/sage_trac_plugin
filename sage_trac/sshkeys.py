@@ -469,7 +469,7 @@ class SshKeysPlugin(GenericTableProvider):
                        'there is no spurious whitespace in the key.')
 
             duplicates = self.env.db_query("""
-                SELECT COUNT(*) FROM ticket sage_trac_ssh_keys
+                SELECT COUNT(*) FROM sage_trac_ssh_keys
                                 WHERE key=%s
              """, (key,))[0][0]
 
