@@ -125,8 +125,11 @@ class GitMerger(GitBase, GenericTableProvider):
             cursor = db.cursor()
             cursor.execute('DELETE FROM "merge_store" WHERE target=%s',
                            (commit.hex,))
+
+        with self.env.db_transaction as db:
             if tmp not in GIT_SPECIAL_MERGES:
                 tmp = tmp.hex
+            cursor = db.cursor()
             cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)',
                     (commit.hex, base.hex, tmp))
 

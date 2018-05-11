@@ -1,7 +1,7 @@
 1.0.1 (unreleased)
 ==================
 
-* No changes yet.
+* Fix crash when updating cached merge previews for the same commit.
 
 
 1.0.0 (2018-05-11)
