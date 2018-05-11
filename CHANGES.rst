@@ -1,7 +1,7 @@
 1.0.2 (unreleased)
 ==================
 
-* No changes yet.
+* Fix generation of commit log URLs for ticket branches.
 
 
 1.0.1 (2018-05-11)
