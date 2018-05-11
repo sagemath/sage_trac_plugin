@@ -470,12 +470,12 @@ class SshKeysPlugin(GenericTableProvider):
 
             duplicates = self.env.db_query("""
                 SELECT COUNT(*) FROM sage_trac_ssh_keys
-                                WHERE key=%s
-             """, (key,))[0][0]
+                                WHERE key=%s AND username<>%s
+             """, (key, req.authname))[0][0]
 
             if duplicates > 0:
                 msg = ('The same key as key #{0} is already in use by '
-                       'this or another account: {1} One SSH key may '
+                       'another account: {1} One SSH key may '
                        'only be associated with one account.')
 
             if msg:
