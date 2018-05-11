@@ -177,13 +177,14 @@ class TicketBox(git_merger.GitMerger):
 
         if branch:
             git_merger_url = req.abs_href('/git-merger/' + branch.hex, params)
+            log_url = self.log_url(base_branch or self.master, branch)
         else:
             git_merger_url = None
 
-        if ret == git_merger.GIT_UPTODATE:
-            if log_url is not None:
-                filters.append(commits_link(self.log_url(base, branch)))
+        if log_url is not None:
+            filters.append(commits_link(log_url))
 
+        if ret == git_merger.GIT_UPTODATE:
             if merge_url is None:
                 filters.append(merge_link())
             else:
@@ -192,8 +193,6 @@ class TicketBox(git_merger.GitMerger):
             filters.append(
                     FILTER_BRANCH.attr("title", "already merged"))
         else:
-            filters.append(commits_link(log_url))
-
             if ret == git_merger.GIT_FAILED_MERGE:
                 return error("trac's automerging failed", filters)
             elif git_merger_url is None:
