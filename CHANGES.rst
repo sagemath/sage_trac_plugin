@@ -1,4 +1,4 @@
-1.0.0 (unreleased)
+1.0.0 (2018-05-11)
 ==================
 
 * Added new `GenericTableProvider` Component.  This is a mixin-class that
