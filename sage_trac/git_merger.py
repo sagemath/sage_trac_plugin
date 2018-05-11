@@ -39,8 +39,8 @@ class GitMerger(GitBase, GenericTableProvider):
 
     _schema = [
         Table('merge_store', key='target')[
-            Column('target'),
             Column('base'),
+            Column('target'),
             Column('tmp')
         ]
     ]
@@ -131,7 +131,7 @@ class GitMerger(GitBase, GenericTableProvider):
                 tmp = tmp.hex
             cursor = db.cursor()
             cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)',
-                    (commit.hex, base.hex, tmp))
+                    (base.hex, commit.hex, tmp))
 
     def _merge(self, commit, base_branch):
         tmpdir = tempfile.mkdtemp()
