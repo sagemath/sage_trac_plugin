@@ -1,4 +1,4 @@
-1.0.3 (unreleased)
+1.0.3 (2018-05-15)
 ==================
 
 * Fix bug with output of merge commit preview for tickets with merged
