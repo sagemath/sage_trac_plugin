@@ -220,7 +220,7 @@ class GitMerger(GitBase, GenericTableProvider):
                     else:
                         found_base = self._git.merge_base(found_base, p.oid)
                 if found_base is not None:
-                    found_base = self._git.get(base)
+                    found_base = self._git.get(base.oid)
                 return found_base, commit
         return None, None
 

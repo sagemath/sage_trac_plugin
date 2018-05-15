@@ -124,7 +124,8 @@ class TicketBox(git_merger.GitMerger):
 
         def merge_link(url=None, class_='positive_review'):
             if url is None:
-                return FILTER_BRANCH.attr("class", class_)
+                return FILTER_BRANCH_TEXT.map(unicode.strip, TEXT).wrap(
+                        tag.span(class_=class_))
 
             return FILTER_BRANCH_TEXT.map(unicode.strip, TEXT).wrap(
                     tag.a(class_=class_, href=url))
@@ -164,11 +165,8 @@ class TicketBox(git_merger.GitMerger):
                 return error("sha1 hash is too ambiguous")
 
         ret = self.peek_merge(branch, base_branch=base_branch)
-        if base_branch_commit:
-            merge_url, log_url = self.get_merge_url(req, branch, ret,
-                                                    base=base_branch_commit)
-        else:
-            merge_url = log_url = None
+        _, log_url = self.get_merge_url(req, branch, ret,
+                                        base=base_branch_commit)
 
         # For the merge-url just always pass through the git-merger frontend
         params = []
@@ -177,7 +175,6 @@ class TicketBox(git_merger.GitMerger):
 
         if branch:
             git_merger_url = req.abs_href('/git-merger/' + branch.hex, params)
-            log_url = self.log_url(base_branch or self.master, branch)
         else:
             git_merger_url = None
 
@@ -185,11 +182,7 @@ class TicketBox(git_merger.GitMerger):
             filters.append(commits_link(log_url))
 
         if ret == git_merger.GIT_UPTODATE:
-            if merge_url is None:
-                filters.append(merge_link())
-            else:
-                filters.append(merge_link(git_merger_url))
-
+            filters.append(merge_link(git_merger_url))
             filters.append(
                     FILTER_BRANCH.attr("title", "already merged"))
         else:

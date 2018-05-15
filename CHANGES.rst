@@ -1,7 +1,8 @@
 1.0.3 (unreleased)
 ==================
 
-* No changes yet.
+* Fix bug with output of merge commit preview for tickets with merged
+  branches.
 
 
 1.0.2 (2018-05-11)
