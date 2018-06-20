@@ -1,4 +1,4 @@
-1.0.4 (unreleased)
+1.0.4 (2018-06-20)
 ==================
 
 * Fix to generate reasonable commit log URLs for branches that have not
