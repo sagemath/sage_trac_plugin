@@ -240,12 +240,12 @@ class GitMerger(GitBase, GenericTableProvider):
             log_base, merge = self.find_base_and_merge(branch, base=base)
 
             if merge is None:
-                merge_url = None
+                merge_url = self.commit_url(branch)
             else:
                 merge_url = self.commit_url(merge)
 
-            if base is None:
-                log_url = None
+            if log_base is None:
+                log_url = self.log_url(branch)
             else:
                 log_url = self.log_url(log_base, branch)
         else:

@@ -1,7 +1,10 @@
 1.0.4 (unreleased)
 ==================
 
-* No changes yet.
+* Fix to generate reasonable commit log URLs for branches that have not
+  been pushed to yet (i.e. are equivalent to the develop branch that were
+  based from).  Should no longer crash Trac when loading tickets with such
+  branches.
 
 
 1.0.3 (2018-05-15)
