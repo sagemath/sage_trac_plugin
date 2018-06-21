@@ -10,11 +10,17 @@ setup(
         zip_safe=True,
         package_data={
             'sage_trac': [
-                'templates/prefs_ssh_keys.html',
+                'templates/*.html',
                 'htdocs/*.css'
                 ],
             },
-        install_requires=['pygit2', 'TracXMLRPC', 'fasteners', 'sshpubkeys'],
+        install_requires=[
+            'pygit2',
+            'TracXMLRPC',
+            'fasteners',
+            'sshpubkeys',
+            'itsdangerous'
+        ],
         dependency_links=['https://trac-hacks.org/svn/xmlrpcplugin/trunk#egg=TracXMLRPC'],
         entry_points={
             'trac.plugins': [
@@ -24,6 +30,7 @@ setup(
                 'sage_trac.sshkeys = sage_trac.sshkeys',
                 'sage_trac.ticket_box = sage_trac.ticket_box',
                 'sage_trac.ticket_log = sage_trac.ticket_log',
-                ]
-            },
-        )
+                'sage_trac.token = sage_trac.token'
+            ]
+        },
+)

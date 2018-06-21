@@ -1,7 +1,8 @@
 1.0.5 (unreleased)
 ==================
 
-* Nothing changed yet.
+* Added a new ``TokenAuthentication`` plugin providing simple authentication
+  to Trac using JSON Web Tokens.
 
 
 1.0.4 (2018-06-20)

@@ -1,0 +1,63 @@
+<!DOCTYPE html
+    PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:py="http://genshi.edgewall.org/"
+      xmlns:xi="http://www.w3.org/2001/XInclude">
+  <xi:include href="prefs.html" />
+  <head>
+    <title>Authentication Token</title>
+    <script type="text/javascript">/*<![CDATA[*/
+      $(document).ready(function() {
+        $("#show-token").on("click", function() {
+          $("#token-hidden").toggle();
+          $("#token-visible").toggle();
+          if ($(this).val() == "Show Token") {
+            $(this).val("Hide Token");
+          } else {
+            $(this).val("Show Token");
+          }
+        });
+
+        if (!!document.queryCommandSupported &&
+            document.queryCommandSupported("copy")) {
+          $("#copy-token").toggle().on("click", function() {
+            var token = $("#token-visible");
+            var visible = token.is(":visible");
+            token.show().enable().select();
+            document.execCommand("copy");
+            token.enable(false);
+            if (!visible) {
+              token.hide();
+            }
+          });
+        }
+      });
+      /*]]>*/</script>
+    <style>/*<![CDATA[*/
+      #token-visible, #token-hidden {
+        font-family: monospace;
+      }
+    /*]]>*/</style>
+  </head>
+  <body>
+    <p>
+      You can authenticate against Trac using the <tt>Bearer</tt> scheme and
+      the following token in the <tt>Authorization</tt> HTTP header of any
+      request against Trac.  For example:
+    </p>
+    <pre class="wiki">curl -H 'Authorization: Bearer &lt;token&gt;' ${req.abs_href('rpc')}</pre>
+    <p>
+      This is particularly useful for applications that use Trac's RPC API (it
+      obviates the need for username+password login).  However, because this
+      token can be used for full access to your Trac account, it should be
+      protected just as if it were a password.
+    </p>
+    <p>
+      <input type="password" disabled="disabled" value="${token}" size="${len(token) + 1}" id="token-hidden" />
+      <input type="text" disabled="disabled" value="${token}" size="${len(token) + 1}" id="token-visible" style="display: none" />
+      <input type="button" value="Show Token" id="show-token" />
+      <input type="button" value="Copy Token" id="copy-token" style="display: none" />
+    </p>
+  </body>
+</html>
