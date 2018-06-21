@@ -35,28 +35,28 @@
 1.0.0 (2018-05-11)
 ==================
 
-* Added new `GenericTableProvider` Component.  This is a mixin-class that
+* Added new ``GenericTableProvider`` Component.  This is a mixin-class that
   should not be used directly, and provides some convenience boilerplate
-  methods that implement `IEnvironmentSetupParticipant` for plugins that
+  methods that implement ``IEnvironmentSetupParticipant`` for plugins that
   provide new tables to the database and/or may require schema updates.
 
-* Updated the `GitMerger` and `SshKeysPlugin` classes to use
-  `GenericTableProvider`.
+* Updated the ``GitMerger`` and ``SshKeysPlugin`` classes to use
+  ``GenericTableProvider`.
 
-* The `SshKeysPlugin` now provides its own table just for SSH keys, instead
-  of using the `UserDataStore` Component.  The `UserDataStore` Component is
+* The ``SshKeysPlugin`` now provides its own table just for SSH keys, instead
+  of using the ``UserDataStore`` Component.  The ``UserDataStore`` Component is
   now deprecated.
 
-* Renamed the `TicketBranch` Component to `TicketBox`, which now provides
+* Renamed the ``TicketBranch`` Component to ``TicketBox`, which now provides
   all customization of the ticket box UI (previously this only applying
   styling to the "branch" field on tickets, but now component also handles
   additional customization that was previously only provided by hand-edited
-  copy of the `ticket_box.html` template).
+  copy of the ``ticket_box.html`` template).
 
 * Improved performance on loading ticket pages with newly added branches.
   The merge previews are no longer generated on ticket page load.  Instead,
   the "branch" link does not go directly to the Git browser, but instead
-  goes through a `/git-merger` URL on the Trac site, which handles generating
+  goes through a ``/git-merger`` URL on the Trac site, which handles generating
   the merge preview, and subsequently redirects to it.  This should help
   reduce server load caused by loading many tickets with new or outdated
   branches simultaneously.
