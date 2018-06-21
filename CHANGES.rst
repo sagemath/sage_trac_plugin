@@ -1,4 +1,4 @@
-1.0.5 (unreleased)
+1.1.0 (2018-06-21)
 ==================
 
 * Added a new ``TokenAuthentication`` plugin providing simple authentication
