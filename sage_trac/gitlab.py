@@ -9,6 +9,7 @@ import pygit2
 
 from trac.config import Option, IntOption
 from trac.core import implements
+from trac.ticket.api import ITicketChangeListener
 from trac.ticket.model import Ticket
 from trac.util.text import exception_to_unicode
 from trac.web.api import IRequestHandler
@@ -24,7 +25,7 @@ class GitlabWebhook(GitBase):
     Currently just handles merge request events.
     """
 
-    implements(IRequestHandler)
+    implements(IRequestHandler, ITicketChangeListener)
 
     endpoint = Option('sage_trac', 'gitlab_webhook_endpoint',
         '/gitlab-hook', doc='string or regular expression to match with '
@@ -114,6 +115,30 @@ class GitlabWebhook(GitBase):
 
         req.send_no_content()
 
+
+    # ITicketChangeListener methods
+
+    def ticket_created(self, ticket):
+        pass
+
+    def ticket_changed(self, ticket, comment, author, old_values):
+        # If the ticket was closed, close the associated merge request as well
+        # (regardless of what the resolution was)
+        if 'status' in old_values and ticket['status'] == 'closed':
+            # Look up the ticket's MR, if any
+            for row in self.env.db_query("""
+                    SELECT value FROM ticket_custom
+                    WHERE ticket=%s AND name=%s""",
+                    (ticket.id, self._field_name)):
+                # There should really be only one, but if for some bizarre
+                # reason there is more than one, let's deal with them anyways
+                proj_id, mr_id = (int(x) for x in row[0].split(':'))
+                self._close_mr(ticket.id, proj_id, mr_id, ticket['resolution'])
+
+
+    def ticket_deleted(self, ticket):
+        pass
+
     def _verify_token(self, token):
         if token is None:
             return False
@@ -191,9 +216,12 @@ class GitlabWebhook(GitBase):
         # changed (in the future we might also handle other fields, or
         # comments)
         tkt_id = None
+
+        proj_mr_id = '{}:{}'.format(proj_id, mr_id)
+
         for row in self.env.db_query("""
                 SELECT ticket FROM ticket_custom
-                WHERE name=%s AND value=%s""", (self._field_name, str(mr_id))):
+                WHERE name=%s AND value=%s""", (self._field_name, proj_mr_id)):
             tkt_id = row[0]
             # There should only be one; if there are more we might want to
             # raise a warning...
@@ -215,7 +243,7 @@ class GitlabWebhook(GitBase):
             ticket.fields.append({'name': self._field_name,
                                   'custom': True})
             ticket.custom_fields.append(self._field_name)
-            ticket[self._field_name] = str(mr_id)
+            ticket[self._field_name] = proj_mr_id
             try:
                 ticket.insert()
             except Exception as exc:
@@ -349,7 +377,20 @@ class GitlabWebhook(GitBase):
                     image_url=image_url, name=name, user_url=user_url,
                     username=username, url=url, description=description))
 
-    def _post_ticket_to_mr(self, ticket_id, project_id, mr_id):
+    def _post_ticket_to_mr(self, ticket_id, proj_id, mr_id):
+        if not self.gitlab_api_token:
+            self.log.warn(
+                "GitLab API token not configured; GitLab webhook can't "
+                "update the downstream merge request")
+            return
+
+        text = ("I created a ticket on Trac for this merge request: "
+                "[Trac#{}]({})".format(
+                    ticket_id, self.env.abs_href.ticket(ticket_id)))
+
+        self._post_comment_to_mr(self, proj_id, mr_id, text)
+
+    def _post_comment_to_mr(self, proj_id, mr_id, text):
         if not self.gitlab_api_token:
             self.log.warn(
                 "GitLab API token not configured; GitLab webhook can't "
@@ -358,15 +399,45 @@ class GitlabWebhook(GitBase):
 
         headers = {'Private-Token': self.gitlab_api_token}
         url = '{}/api/v4/projects/{}/merge_requests/{}/notes'.format(
-                self.gitlab_url.rstrip('/'), project_id, mr_id)
-        text = ("I created a ticket on Trac for this merge request: "
-                "[Trac#{}]({})".format(
-                    ticket_id, self.env.abs_href.ticket(ticket_id)))
+                self.gitlab_url.rstrip('/'), proj_id, mr_id)
 
         try:
             r = requests.post(url, data={'body': text}, headers=headers,
                              timeout=10)
         except Exception as exc:
             self.log.error(
-                    'Error posting ticket link comment to GitLab: '
-                    '{}'.format(exc))
+                    'Error comment to GitLab: {}'.format(
+                        exception_to_unicode(exc, True)))
+
+    def _close_mr(self, ticket_id, proj_id, mr_id, resolution):
+        if not self.gitlab_api_token:
+            self.log.warn(
+                "GitLab API token not configured; GitLab webhook can't "
+                "update the downstream merge request")
+            return
+
+        self.log.debug('Trying to close merge request {} since ticket {} '
+                       'was closed.'.format(mr_id, ticket_id))
+
+        headers = {'Private-Token': self.gitlab_api_token}
+        url = '{}/api/v4/projects/{}/merge_requests/{}'.format(
+                self.gitlab_url.rstrip('/'), proj_id, mr_id)
+        try:
+            r = requests.put(url, data={'state_event': 'close'},
+                             headers=headers,
+                             timeout=10)
+        except Exception as exc:
+            self.log.error(
+                    'Error updating merge request: {}'.format(
+                        exception_to_unicode(exc, True)))
+            return
+
+        text = ("Downstream ticket [Trac#{}]({}) was closed as {}, so I "
+                "closed this merge request.  If you feel this was in error "
+                "feel free to reopen.".format(
+                    ticket_id, self.env.abs_href.ticket(ticket_id),
+                    resolution))
+
+        self._post_comment_to_mr(proj_id, mr_id, text)
+
+        self.log.info('Successfully closed merge request {}'.format(mr_id))
