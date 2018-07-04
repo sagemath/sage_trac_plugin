@@ -1,7 +1,8 @@
-1.1.1 (unreleased)
+1.2.0 (unreleased)
 ==================
 
-* Nothing changed yet.
+* Added a new "markdown" wiki processor.  It's mostly compatible with
+  GitHub and GitLab style markdown, modulo a few corner cases.
 
 
 1.1.0 (2018-06-21)
