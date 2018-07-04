@@ -4,6 +4,12 @@
 * Added a new "markdown" wiki processor.  It's mostly compatible with
   GitHub and GitLab style markdown, modulo a few corner cases.
 
+* Added the GitLab merge request sync bot.  It takes merge requests from
+  a project configured with the Trac server as a web hook and creates Trac
+  tickets from them (it should only be used with one project or it will
+  probably get confused, though it wouldn't be too much work to make it
+  support multiple projects, in theory).
+
 
 1.1.0 (2018-06-21)
 ==================

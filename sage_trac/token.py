@@ -49,7 +49,7 @@ class TokenAuthenticator(Component):
             yield 'token', 'Token'
 
     def render_preference_panel(self, req, panel):
-        token = self._serializer.dumps(req.authname)
+        token = self.create_token(req.authname)
         return 'prefs_token.html', {'token': token}
 
     # IAuthenticator methods
@@ -58,6 +58,17 @@ class TokenAuthenticator(Component):
         if username:
             req.environ['REMOTE_USER'] = username
             return username
+
+    def create_token(self, authname):
+        return self._serializer.dumps(authname)
+
+    def verify_token(self, token):
+        try:
+            username = self._serializer.loads(token)
+        except BadSignature:
+            username = None
+
+        return username
 
     def _check_token(self, req):
         if not self._serializer:
@@ -81,11 +92,10 @@ class TokenAuthenticator(Component):
                            "skipping token auth")
             return None
 
-        try:
-            username = self._serializer.loads(token)
+        username = self.verify_token(token)
+
+        if username is not None:
             self.log.debug("Successful token auth for user {}".format(
                 username))
-        except BadSignature:
-            username = None
 
         return username

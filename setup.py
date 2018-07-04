@@ -20,6 +20,7 @@ setup(
             'fasteners',
             'sshpubkeys',
             'itsdangerous',
+            'requests',
             'markdown',
             'pygments'
         ],
@@ -28,6 +29,7 @@ setup(
             'trac.plugins': [
                 'sage_trac = sage_trac',
                 'sage_trac.buildbot_hook = sage_trac.buildbot_hook',
+                'sage_trac.gitlab = sage_trac.gitlab',
                 'sage_trac.markdown = sage_trac.markdown',
                 'sage_trac.search_branch = sage_trac.search_branch',
                 'sage_trac.sshkeys = sage_trac.sshkeys',
