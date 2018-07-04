@@ -97,6 +97,10 @@ class GitlabWebhook(GitBase):
         self.log.debug('GitLab webhook received event payload:\n' +
                 pformat(hook_data))
 
+        if hook_data['object_attributes']['state'] == 'closed':
+            # Do not update tickets/branches for closed merged requests
+            return req.send_no_content()
+
         try:
             synced_branch = self._sync_branch(hook_data)
         except Exception as exc:
