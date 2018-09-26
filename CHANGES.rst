@@ -1,4 +1,4 @@
-1.2.0 (unreleased)
+1.2.0 (2018-09-26)
 ==================
 
 * Added a new "markdown" wiki processor.  It's mostly compatible with
