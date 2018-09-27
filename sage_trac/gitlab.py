@@ -392,7 +392,7 @@ class GitlabWebhook(GitBase):
                 "[Trac#{}]({})".format(
                     ticket_id, self.env.abs_href.ticket(ticket_id)))
 
-        self._post_comment_to_mr(self, proj_id, mr_id, text)
+        self._post_comment_to_mr(proj_id, mr_id, text)
 
     def _post_comment_to_mr(self, proj_id, mr_id, text):
         if not self.gitlab_api_token:

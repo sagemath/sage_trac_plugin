@@ -1,7 +1,7 @@
 1.2.1 (unreleased)
 ==================
 
-* Nothing changed yet.
+* Fixed typo in GitLab webhook code.
 
 
 1.2.0 (2018-09-26)
