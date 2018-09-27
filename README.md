@@ -38,6 +38,7 @@ The `sage_trac` plugin currently consists of five main components:
 * [TicketBox](#TicketBox)
 * [TicketLog](#TicketLog)
 * [BranchSearchModule](#BranchSearchModule)
+* [GitLabWebHook](#GitLabWebHook)
 * [BuildBotHook](#BuildBotHook) (broken)
 
 ### SshKeysPlugin
@@ -147,6 +148,67 @@ This component *must* be enabled in order for `SshKeysPlugin` to work.
 
 
 ### BranchSearchModule
+
+
+### GitLabWebHook
+
+A component to receive GitLab [webhook
+events](https://gitlab.com/help/user/project/integrations/webhooks).
+Currently it only receives merge request events, and as such is used to
+synchronize GitLab merge requests to Trac tickets.  That is, when a merge
+request is opened on the relevant GitLab project, the merge request creation
+event is used to open a ticket tracking that merge request on Trac.  It also
+synchronizes the Git branch from GitLab to a branch in Sage's main Git
+repository and adds that branch to the ticket.  Further updates to the
+branch on the merge request are also synchronized.  When the merge request
+is closed, so is the Trac ticket.
+
+This takes a bit of work on both the Trac side and on the GitLab side to
+configure.  First of all you need two things:
+
+* A user on the Trac site--preferably a user created solely to act as a bot,
+  under whose name merge requests will be posted.  For the purpose of these
+  instructions let's say the username is "trac".
+
+  * For this user we will also need their access token (see the
+    `sage_trac.token` module), obtained by logging in to Trac as that user
+    and going to `/prefs/token`.
+
+* Likewise, a user on the GitLab site who will post updates about the ticket
+  to the GitLab merge request--this user should have at least the Developer
+  role on the GitLab project.
+
+  * For this user we also also need a GitLab access token so that Trac can
+    post back to GitLab using its API.  This can be obtained by logging in
+    as the bot user and going to
+    https://gitlab.com/profile/personal_access_tokens  Give the token an
+    obvious name like "trac sync", and grant it the "api" scope.  An
+    expiry date may be set but you will have to generate a new token and
+    update the Trac configuration when the token expires.
+
+Given these things, add the following configuration in `trac.ini`:
+
+    [components]
+    sage_trac.gitlab.gitlabwebhook = enabled
+    sage_trac.markdown.markdownmacro = enabled
+
+    [sage_trac]
+    gitlab_webhook_username = trac
+    gitlab_api_token = <api token obtained through gitlab>
+
+Note: The markdown macro is used by the plugin to embed a copy of the
+merge request description in the Trac ticket, and supports a minimal amount
+of markdown rendering.
+
+On the GitLab side, go to the project's webhook integrations and add
+
+    https://trac.sagemath.org/gitlab-hook
+
+and configure it to trigger only for "Merge request events".  In the future
+maybe we will handle more events as well.  Do enable SSL verification.  For
+the "Secret Token", paste the access token for the Trac user obtained from
+Trac.  This will allow the webhook to authenticate to Trac as the user
+configured to post to Trac on its behalf.  And that should do it.
 
 
 ### BuildBotHook
