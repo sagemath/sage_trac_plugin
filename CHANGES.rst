@@ -1,7 +1,8 @@
 1.2.2 (unreleased)
 ==================
 
-* Nothing changed yet.
+* Removed user icon from description of tickets synced from merge requests;
+  it was found to be distracting.
 
 
 1.2.1 (2018-09-27)

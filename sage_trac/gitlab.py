@@ -359,7 +359,6 @@ class GitlabWebhook(GitBase):
         user = hook_data['user']
         name = user['name']
         username = user['username']
-        image_url = user['avatar_url']
         user_url = '{}/{}'.format(self.gitlab_url.rstrip('/'), username)
         url = attrs['url']
 
@@ -375,11 +374,10 @@ class GitlabWebhook(GitBase):
 
         description += u'\n' + (u'[[BR]]' * n_breaks)
 
-        return (u'[[Image({image_url}, right, margin=5)]] '
-                 '{name} ([{user_url} @{username}]) opened a '
-                 'merge request at {url}: [[BR]][[BR]]\n{description}'.format(
-                    image_url=image_url, name=name, user_url=user_url,
-                    username=username, url=url, description=description))
+        return (u'{name} ([{user_url} @{username}]) opened a '
+                 'merge request at {url}:\n----\n{description}'.format(
+                    name=name, user_url=user_url, username=username, url=url,
+                    description=description))
 
     def _post_ticket_to_mr(self, ticket_id, proj_id, mr_id):
         if not self.gitlab_api_token:
