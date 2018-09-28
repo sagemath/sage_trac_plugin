@@ -9,8 +9,10 @@ import pygit2
 
 from trac.config import Option, IntOption
 from trac.core import implements
+from trac.notification.api import NotificationSystem
 from trac.ticket.api import ITicketChangeListener
 from trac.ticket.model import Ticket
+from trac.ticket.notification import TicketChangeEvent
 from trac.util.text import exception_to_unicode
 from trac.web.api import IRequestHandler
 
@@ -273,6 +275,7 @@ class GitlabWebhook(GitBase):
                 raise
             else:
                 self._post_ticket_to_mr(ticket.id, proj_id, mr_id)
+                self._notify_ticket_event(ticket, 'created')
         else:
             # Maybe update existing ticket
             comment = None
@@ -294,7 +297,15 @@ class GitlabWebhook(GitBase):
                 comment = self._update_commit(ticket, new_commit)
                 ticket['commit'] = new_commit
 
-            ticket.save_changes(author=self.username, comment=comment)
+            try:
+                ticket.save_changes(author=self.username, comment=comment)
+            except Exception as exc:
+                self.log.error(
+                    'Database error updating ticket from Gitlab '
+                    'webhook: {}'.format(exception_to_unicode(exc, True)))
+                raise
+            else:
+                self._notify_ticket_event(ticket, 'changed', comment)
 
     def _update_commit(self, ticket, new_commit):
         """
@@ -459,3 +470,21 @@ class GitlabWebhook(GitBase):
         self._post_comment_to_mr(proj_id, mr_id, text)
 
         self.log.info('Successfully closed merge request {}'.format(mr_id))
+
+    def _notify_ticket_event(self, ticket, event, comment=None):
+        """
+        Create a ticket change event and pass it through the notification
+        system.
+        """
+
+        # This code is copied almost verbatim from trac.ticket.web_ui; it's too
+        # bad the API doesn't have a better method to create/update tickets
+        # that automatically incorporates notification and other side-effects
+
+        event = TicketChangeEvent(event, ticket, ticket['changetime'],
+                                  self.username, comment=comment)
+        try:
+            NotificationSystem(self.env).notify(event)
+        except Exception as e:
+            self.log.error("Failure sending notification on %s event of "
+                    "ticket #%s: %s", event, ticket.id, exception_to_unicode(e))

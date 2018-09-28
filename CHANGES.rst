@@ -12,6 +12,9 @@
 * Insert merge request author's full name into the "Author" field of tickets
   created from merge requests.
 
+* Provisionally fix e-mail notifications of tickets created via the GitLab
+  hook.
+
 
 1.2.1 (2018-09-27)
 ==================
