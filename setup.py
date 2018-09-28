@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
         name='sage_trac',
-        version='1.2.2.dev0',
+        version='1.2.2',
         url='https://github.com/sagemath/sage_trac_plugin',
         packages=find_packages(),
         zip_safe=True,

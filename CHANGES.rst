@@ -1,4 +1,4 @@
-1.2.2 (unreleased)
+1.2.2 (2018-09-28)
 ==================
 
 * Removed user icon from description of tickets synced from merge requests;
