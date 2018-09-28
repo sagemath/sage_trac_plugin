@@ -42,6 +42,13 @@ class GitlabWebhook(GitBase):
             'mrs/', doc='prefix to prepend (after u/<username>/) to git '
                         'branches synced from merge requests')
 
+    default_ticket_status = Option('sage_trac',
+            'gitlab_default_ticket_status',
+            'new', doc='status that should be applied to tickets created '
+                       'from merge requests; by default tickets are created '
+                       'in the "new" status, but any valid status in the '
+                       'workflow may be applied')
+
     gitlab_api_token = Option('sage_trac', 'gitlab_api_token',
             doc="API token for GitLab with permissions to post to the "
                 "GitLab project; used to sync back to the GitLab project "
@@ -237,6 +244,10 @@ class GitlabWebhook(GitBase):
             ticket['reporter'] = self.username
             ticket['summary'] = self._format_summary(hook_data)
             ticket['description'] = self._format_description(hook_data)
+
+            # Set the initial status for the ticket, bypassing the normal
+            # workflow (which would set it to 'new')
+            ticket['status'] = self.default_ticket_status
 
             if synced_branch:
                 ticket['branch'] = self._upstream_branch(mr_id, source_branch)

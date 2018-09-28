@@ -4,6 +4,11 @@
 * Removed user icon from description of tickets synced from merge requests;
   it was found to be distracting.
 
+* Create tickets from merge requests in the "needs_review" status (otherwise
+  they are less likely to be seen by someone; the point of having these
+  tickets is that by definition merge requests need review--if they are found
+  to be not ready the status can always be change to "needs_work", etc.
+
 
 1.2.1 (2018-09-27)
 ==================
