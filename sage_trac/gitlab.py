@@ -222,6 +222,8 @@ class GitlabWebhook(GitBase):
         mr_id = attrs['iid']
         proj_id = attrs['target']['id']
         source_branch = attrs['source_branch']
+
+        mr_user = hook_data['user']
         # First check whether a ticket already exists for this MR;
         # if so we might update the ticket if its summary or description
         # changed (in the future we might also handle other fields, or
@@ -244,6 +246,9 @@ class GitlabWebhook(GitBase):
             ticket['reporter'] = self.username
             ticket['summary'] = self._format_summary(hook_data)
             ticket['description'] = self._format_description(hook_data)
+
+            # Set the "author" field to the GitLab user's full name
+            ticket['author'] = mr_user['name']
 
             # Set the initial status for the ticket, bypassing the normal
             # workflow (which would set it to 'new')

@@ -9,6 +9,9 @@
   tickets is that by definition merge requests need review--if they are found
   to be not ready the status can always be change to "needs_work", etc.
 
+* Insert merge request author's full name into the "Author" field of tickets
+  created from merge requests.
+
 
 1.2.1 (2018-09-27)
 ==================
