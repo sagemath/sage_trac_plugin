@@ -195,10 +195,16 @@ Given these things, add the following configuration in `trac.ini`:
     [sage_trac]
     gitlab_webhook_username = trac
     gitlab_api_token = <api token obtained through gitlab>
+    gitlab_default_ticket_status = needs_review
 
 Note: The markdown macro is used by the plugin to embed a copy of the
 merge request description in the Trac ticket, and supports a minimal amount
 of markdown rendering.
+
+Note: The `gitlab_default_ticket_status` option is optional and defaults to
+'new', but we set it to 'needs_review', meaning that Trac tickets
+automatically created from merge requets are created in the 'needs_review'
+status of our workflow.
 
 On the GitLab side, go to the project's webhook integrations and add
 
