@@ -2,14 +2,12 @@
 
 import re
 import shutil
-import subprocess
 import tempfile
 import os.path
 
 import pygit2
 
-from .common import (GitBase, _signature_re, GenericTableProvider, run_git,
-                     hexify)
+from .common import (GitBase, _signature_re, GenericTableProvider, run_git)
 
 from trac.core import implements, TracError
 from trac.config import Option

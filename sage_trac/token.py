@@ -12,7 +12,6 @@ from pkg_resources import resource_filename
 from trac.config import Option
 from trac.core import Component, implements
 from trac.prefs import IPreferencePanelProvider
-from trac.util import hex_entropy
 from trac.web.api import IAuthenticator
 from trac.web.chrome import ITemplateProvider
 

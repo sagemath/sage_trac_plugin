@@ -6,12 +6,12 @@ from genshi.builder import tag
 from genshi.core import TEXT
 from genshi.filters import Transformer
 
-from trac.core import *
+from trac.core import implements, TracError
 from trac.config import Option
 from trac.web.api import ITemplateStreamFilter
 from trac.web.chrome import add_stylesheet, ITemplateProvider
 
-from .common import GitBase, _signature_re
+from .common import _signature_re
 
 from . import git_merger
 

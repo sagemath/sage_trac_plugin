@@ -456,7 +456,7 @@ class SshKeysPlugin(GenericTableProvider):
             msg = None
 
             try:
-                ssh = SSHKey(key)
+                SSHKey(key)
             except NotImplementedError:
                 msg = ('Unknown key type encountered in key #{0}:'
                        '{1}'

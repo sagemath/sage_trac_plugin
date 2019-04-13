@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
 
-from trac.core import *
+from trac.core import implements
 from trac.config import ListOption, IntOption
 from trac.ticket.api import ITicketManipulator
 
 from .common import GitBase
 
 import pygit2
+
 
 class TicketLog(GitBase):
     implements(ITicketManipulator)
