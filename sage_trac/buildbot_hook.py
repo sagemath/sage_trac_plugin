@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
-from trac.core import implements
+from trac.core import implements, TracError, tracid
 from trac.ticket.api import ITicketManipulator
 from trac.ticket.model import Ticket
 from trac.web.api import ITemplateStreamFilter
 from tracrpc.api import IXMLRPCHandler
 
-from .common import GitBase, hexify
+from .common import hexify
 
 from . import git_merger
 

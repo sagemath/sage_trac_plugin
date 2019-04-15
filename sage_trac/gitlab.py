@@ -1,6 +1,5 @@
 import json
 import re
-import subprocess
 
 from pprint import pformat
 
