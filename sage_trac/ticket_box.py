@@ -131,8 +131,17 @@ class TicketBox(git_merger.GitMerger):
                     tag.a(class_=class_, href=url))
 
         def commits_link(url):
-            return FILTER_BRANCH.append(tag.span(' ')).\
-                    append(tag.a('(Commits)', href=url))
+            links = tag.span(' ('))
+            if url is not None:
+                links.append(tag.a('Commits', href=url))
+                links.append(tag.span(', '))
+            github_url = f"https://github.com/sagemath/sagetrac-mirror/compare/develop...{branch}"
+            gitlab_url = f"https://gitlab.com/sagemath/dev/tracmirror/-/compare/develop...{branch}"
+            links.append(tag.a('GitHub', href=github_url))
+            links.append(tag.span(', '))
+            links.append(tag.a('GitLab', href=gitlab_url))
+            links.append(tag.span(')'))
+            return FILTER_BRANCH.append(links)
 
         def error_filters(error):
             return [FILTER_BRANCH.attr("class", "needs_work"),
@@ -178,8 +187,7 @@ class TicketBox(git_merger.GitMerger):
         else:
             git_merger_url = None
 
-        if log_url is not None:
-            filters.append(commits_link(log_url))
+        filters.append(commits_link(log_url))
 
         if ret == git_merger.GIT_UPTODATE:
             filters.append(merge_link(git_merger_url))
