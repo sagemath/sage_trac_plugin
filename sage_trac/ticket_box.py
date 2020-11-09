@@ -99,6 +99,14 @@ class TicketBox(git_merger.GitMerger):
 
             filters.append(FILTER_DATE.after(elem))
 
+        branch = ticket['branch']
+        github_action_url = f"https://github.com/sagemath/sagetrac-mirror/actions?query=workflow%3ALint+branch%3{branch}"
+        github_badge_url = f"https://github.com/sagemath/sagetrac-mirror/workflows/Lint/badge.svg?branch={branch}"
+        github_elem = tag.div(
+            tag.a(tag.img(src=github_badge_url, border=0), href=github_action_url),
+            class_='date')
+        filters.append(FILTER_DATE.after(github_elem))
+            
         filters.extend(self._get_branch_filters(req, ticket))
 
         def apply_filters(filters):
