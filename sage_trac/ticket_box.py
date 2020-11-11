@@ -131,7 +131,7 @@ class TicketBox(git_merger.GitMerger):
                     tag.a(class_=class_, href=url))
 
         def commits_link(url):
-            links = tag.span(' ('))
+            links = tag.span(' (')
             if url is not None:
                 links.append(tag.a('Commits', href=url))
                 links.append(tag.span(', '))
