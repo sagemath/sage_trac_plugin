@@ -135,8 +135,8 @@ class TicketBox(git_merger.GitMerger):
             if url is not None:
                 links.append(tag.a('Commits', href=url))
                 links.append(tag.span(', '))
-            github_url = f"https://github.com/sagemath/sagetrac-mirror/compare/develop...{branch}"
-            gitlab_url = f"https://gitlab.com/sagemath/dev/tracmirror/-/compare/develop...{branch}"
+            github_url = "https://github.com/sagemath/sagetrac-mirror/compare/develop...{}".format(branch)
+            gitlab_url = "https://gitlab.com/sagemath/dev/tracmirror/-/compare/develop...{}".format(branch)
             links.append(tag.a('GitHub', href=github_url))
             links.append(tag.span(', '))
             links.append(tag.a('GitLab', href=gitlab_url))
