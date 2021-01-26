@@ -99,7 +99,7 @@ class TicketBox(git_merger.GitMerger):
 
             filters.append(FILTER_DATE.after(elem))
 
-        gitlab_url = "https://gitlab.com/sagemath/dev/trac/-/pipelines/{}/latest"
+        gitlab_url = "https://gitlab.com/sagemath/dev/trac/badges/{}/pipeline.svg"
         gitlab_elem = tag.div(
                 tag.a(tag.img(src="https://docs.gitlab.com/assets/images/gitlab-logo.svg", border=0, height=32),
                       href=gitlab_url.format(ticket['branch'])),
