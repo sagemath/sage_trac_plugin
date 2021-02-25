@@ -145,7 +145,7 @@ class TicketBox(git_merger.GitMerger):
             format_vars['ticket_' + k] = v
 
         badge_tags = []
-        for status_badge in reversed(self.status_badges):
+        for status_badge in self.status_badges:
             link_url = status_badge['link_url'].format(**format_vars)
             img_url = status_badge['img_url'].format(**format_vars)
             img_attrs = {
@@ -155,11 +155,10 @@ class TicketBox(git_merger.GitMerger):
             for img_opt in ('width', 'height'):
                 if img_opt in status_badge:
                     img_attrs[img_opt] = status_badge[img_opt]
-            badge_tags.append(tag.div(
-                tag.a(tag.img(**img_attrs), href=link_url),
-                class_='date'))
+            badge_tags.append(tag.a(tag.img(**img_attrs), href=link_url))
 
-        filters.append(FILTER_DATE.after(tag(*badge_tags)))
+        filters.append(FILTER_DATE.after(tag.div(*badge_tags,
+            style='float: right; display: flex; align-items: center;')))
         filters.extend(self._get_branch_filters(req, ticket))
 
         def apply_filters(filters):
