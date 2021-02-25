@@ -19,7 +19,8 @@ from . import git_merger
 import pkg_resources
 import pygit2
 
-FILTER_DATE = Transformer('//div[@id="ticket"]/div[@class="date"]')
+FILTER_PROPERTIES = Transformer(
+    '//div[@id="ticket"]/table[@class="properties"]')
 FILTER_ID = Transformer('//div[@id="ticket"]/h2/a[@class="trac-id"]')
 FILTER_BRANCH = Transformer('//td[@headers="h_branch"]')
 FILTER_BRANCH_TEXT = Transformer('//td[@headers="h_branch"]/text()')
@@ -72,6 +73,8 @@ class TicketBox(git_merger.GitMerger):
                 <name>.order = <relative order of the badge>
                 <name>.height = <height attribute for the image>
                 <name>.width = <width attribute for the image>
+                <name>.margin_left = <CSS margin left of the badge>
+                <name>.margin_left = <CSS margin right of the badge>
 
             The ``link_url`` and ``img_url`` accept format string templates
             with the following template variables supported:
@@ -83,6 +86,9 @@ class TicketBox(git_merger.GitMerger):
             * ``{ticket_<field>}``: for each ticket field there is a variable
               ``ticket_<field>`` providing its value; e.g. ``ticket_id`` gives
               the ID of the ticket the badge is displayed on.
+
+            The margin options may be useful for grouping related badges
+            together.
             """)
 
     # Templates on which this filter should be applied
@@ -148,6 +154,14 @@ class TicketBox(git_merger.GitMerger):
         for status_badge in self.status_badges:
             link_url = status_badge['link_url'].format(**format_vars)
             img_url = status_badge['img_url'].format(**format_vars)
+            anchor_attrs = {'href': link_url}
+            for anchor_opt in ('margin_left', 'margin_right'):
+                if anchor_opt in status_badge:
+                    anchor_attrs.setdefault('style', '')
+                    anchor_attrs['style'] += (
+                        '{attr}: {val};'.format(
+                            attr=anchor_opt.replace('_', '-'),
+                            val=status_badge[anchor_opt]))
             img_attrs = {
                 'src': img_url,
                 'border': 0
@@ -155,10 +169,11 @@ class TicketBox(git_merger.GitMerger):
             for img_opt in ('width', 'height'):
                 if img_opt in status_badge:
                     img_attrs[img_opt] = status_badge[img_opt]
-            badge_tags.append(tag.a(tag.img(**img_attrs), href=link_url))
+            badge_tags.append(tag.a(tag.img(**img_attrs), **anchor_attrs))
 
-        filters.append(FILTER_DATE.after(tag.div(*badge_tags,
-            style='float: right; display: flex; align-items: center;')))
+        filters.append(FILTER_PROPERTIES.after(
+            tag.div(tag.h3('Status badges', id='comment:status-badges'),
+                    tag.div(*badge_tags), class_='badges description')))
         filters.extend(self._get_branch_filters(req, ticket))
 
         def apply_filters(filters):
