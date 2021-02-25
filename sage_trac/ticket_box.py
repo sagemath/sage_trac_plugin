@@ -50,6 +50,16 @@ class TicketBox(git_merger.GitMerger):
             'base URL of the Sage patchbot server from which to show '
             'the ticket build status')
 
+    github_url = Option(
+            'sage_trac', 'github_url', '',
+            'base URL of the Sage GitHub project from which to show '
+            'the ticket build status')
+
+    gitlab_url = Option(
+            'sage_trac', 'gitlab_url', '',
+            'base URL of the Sage GitLab project from which to show '
+            'the ticket build status')
+
     # Templates on which this filter should be applied
     _templates = set(['ticket_change.html', 'ticket_preview.html',
                       'ticket.html'])
@@ -131,8 +141,28 @@ class TicketBox(git_merger.GitMerger):
                     tag.a(class_=class_, href=url))
 
         def commits_link(url):
-            return FILTER_BRANCH.append(tag.span(' ')).\
-                    append(tag.a('(Commits)', href=url))
+            links = [u' (']
+            if url is not None:
+                links.append(tag.a('Commits', href=url))
+                links.append(u', ')
+
+            link_vars = {'master': self.master_branch, 'branch': branch}
+
+            if self.github_url:
+                github_url = (self.github_url.rstrip('/') +
+                              "/compare/{master}...{branch}")
+                links.append(tag.a('GitHub',
+                                   href=github_url.format(**link_vars)))
+                links.append(u', ')
+            if self.gitlab_url:
+                gitlab_url = (self.gitlab_url.rstrip('/') +
+                              "/-/compare/{master}...{branch}")
+                links.append(tag.a('GitLab',
+                                   href=gitlab_url.format(**link_vars)))
+
+            links.append(u')')
+
+            return FILTER_BRANCH.append(tag.span(*links))
 
         def error_filters(error):
             return [FILTER_BRANCH.attr("class", "needs_work"),
@@ -149,10 +179,10 @@ class TicketBox(git_merger.GitMerger):
                 base_branch = None
 
         try:
-            is_sha, branch = self.generic_lookup(branch)
+            is_sha, branch_commit = self.generic_lookup(branch)
             if is_sha:
                 filters.append(
-                        FILTER_BRANCH_TEXT.replace(branch.hex[:7]+' '))
+                        FILTER_BRANCH_TEXT.replace(branch_commit.hex[:7]+' '))
 
             if base_branch:
                 _, base_branch_commit = self.generic_lookup(base_branch)
@@ -164,8 +194,8 @@ class TicketBox(git_merger.GitMerger):
             else:
                 return error("sha1 hash is too ambiguous")
 
-        ret = self.peek_merge(branch, base_branch=base_branch)
-        _, log_url = self.get_merge_url(req, branch, ret,
+        ret = self.peek_merge(branch_commit, base_branch=base_branch)
+        _, log_url = self.get_merge_url(req, branch_commit, ret,
                                         base=base_branch_commit)
 
         # For the merge-url just always pass through the git-merger frontend
@@ -174,7 +204,7 @@ class TicketBox(git_merger.GitMerger):
             params.append(('base', base_branch))
 
         if branch:
-            git_merger_url = req.abs_href('/git-merger/' + branch.hex, params)
+            git_merger_url = req.abs_href('/git-merger/' + branch_commit.hex, params)
         else:
             git_merger_url = None
 

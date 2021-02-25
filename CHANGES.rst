@@ -3,6 +3,9 @@
 
 * The buildbot hook plugin is completely disabled until/unless it is fixed.
 
+* Display links to GitHub and GitLab diff viewers for branches, which may be
+  nicer to use than the old cgit interface (e.g. allowing code review tools).
+
 
 1.2.2 (2018-09-28)
 ==================
