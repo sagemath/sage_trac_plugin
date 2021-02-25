@@ -1,7 +1,7 @@
-1.2.3 (unreleased)
+1.3.0 (unreleased)
 ==================
 
-* Nothing changed yet.
+* The buildbot hook plugin is completely disabled until/unless it is fixed.
 
 
 1.2.2 (2018-09-28)
