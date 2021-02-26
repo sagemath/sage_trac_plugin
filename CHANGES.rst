@@ -1,4 +1,4 @@
-1.3.1 (unreleased)
+1.3.1 (2021-02-26)
 ==================
 
 * Don't display GitHub/GitLab diff links if the URLs for them are not
@@ -9,7 +9,7 @@
   ticket fields have not been filled out yet (e.g. on new tickets).
 
 
-1.3.0 (2020-02-26)
+1.3.0 (2021-02-26)
 ==================
 
 * The buildbot hook plugin is completely disabled until/unless it is fixed.
