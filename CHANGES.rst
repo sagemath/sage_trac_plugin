@@ -6,6 +6,9 @@
 * Display links to GitHub and GitLab diff viewers for branches, which may be
   nicer to use than the old cgit interface (e.g. allowing code review tools).
 
+* Added ``[sage_trac:status_badges]`` config section for adding additional
+  status badges to ticket pages. [#24]
+
 
 1.2.2 (2018-09-28)
 ==================
