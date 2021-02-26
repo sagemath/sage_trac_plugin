@@ -144,16 +144,26 @@ class TicketBox(git_merger.GitMerger):
 
         format_vars = {
             'nonce': hex(random.randint(0, 1 << 60)),
-            'ticket_id': ticket.id
         }
 
+        if ticket.id is not None:
+            format_vars['ticket_id'] = ticket.id
+
         for k, v in ticket.values.items():
-            format_vars['ticket_' + k] = v
+            if v:
+                format_vars['ticket_' + k] = v
 
         badge_tags = []
         for status_badge in self.status_badges:
-            link_url = status_badge['link_url'].format(**format_vars)
-            img_url = status_badge['img_url'].format(**format_vars)
+            try:
+                link_url = status_badge['link_url'].format(**format_vars)
+                img_url = status_badge['img_url'].format(**format_vars)
+            except KeyError:
+                # It's possible that the ticket does not yet have all the
+                # fields required to render this status badge (it is a new
+                # ticket, something like that); so just skip.
+                continue
+
             anchor_attrs = {'href': link_url}
             for anchor_opt in ('margin_left', 'margin_right'):
                 if anchor_opt in status_badge:
@@ -171,10 +181,13 @@ class TicketBox(git_merger.GitMerger):
                     img_attrs[img_opt] = status_badge[img_opt]
             badge_tags.append(tag.a(tag.img(**img_attrs), **anchor_attrs))
 
-        filters.append(FILTER_PROPERTIES.after(
-            tag.div(tag.h3('Status badges', id='comment:status-badges'),
-                    tag.div(*badge_tags), class_='badges description')))
-        filters.extend(self._get_branch_filters(req, ticket))
+        if badge_tags:
+            # Don't append the status badges section unless there are actually
+            # status badges to display
+            filters.append(FILTER_PROPERTIES.after(
+                tag.div(tag.h3('Status badges', id='comment:status-badges'),
+                        tag.div(*badge_tags), class_='badges description')))
+            filters.extend(self._get_branch_filters(req, ticket))
 
         def apply_filters(filters):
             s = stream
@@ -209,17 +222,17 @@ class TicketBox(git_merger.GitMerger):
             links = [u' (']
             if url is not None:
                 links.append(tag.a('Commits', href=url))
-                links.append(u', ')
 
             link_vars = {'master': self.master_branch, 'branch': branch}
 
             if self.github_url:
+                links.append(u', ')
                 github_url = (self.github_url.rstrip('/') +
                               "/compare/{master}...{branch}")
                 links.append(tag.a('GitHub',
                                    href=github_url.format(**link_vars)))
-                links.append(u', ')
             if self.gitlab_url:
+                links.append(u', ')
                 gitlab_url = (self.gitlab_url.rstrip('/') +
                               "/-/compare/{master}...{branch}")
                 links.append(tag.a('GitLab',

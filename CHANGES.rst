@@ -1,7 +1,12 @@
 1.3.1 (unreleased)
 ==================
 
-* Nothing changed yet.
+* Don't display GitHub/GitLab diff links if the URLs for them are not
+  configured.
+
+* Don't display status badges section if there are no status badges to
+  display.  Omit status badges that cannot yet be rendered if the required
+  ticket fields have not been filled out yet (e.g. on new tickets).
 
 
 1.3.0 (2020-02-26)
