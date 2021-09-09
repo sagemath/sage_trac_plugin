@@ -196,7 +196,7 @@ class SshKeysPlugin(GenericTableProvider):
     @locked
     def _init_gitolite_admin(self):
         """
-        Initilizes (by cloning) or cleans up (if it already exists) the
+        Initializes (by cloning) or cleans up (if it already exists) the
         local clone of the gitolite-admin repository in which SSH keys
         are stored.
 
@@ -535,7 +535,7 @@ class SshKeysPlugin(GenericTableProvider):
                         # Turns out even with DISTINCT there are some
                         # duplicates that occur after stripping whitespace;
                         # since it's difficult to do this in a manner portable
-                        # accross DB's we'll manually keep track of what
+                        # across DB's we'll manually keep track of what
                         # user/key pairs we've seen
                         if (user, key) in seen:
                             continue
