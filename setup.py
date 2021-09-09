@@ -8,12 +8,8 @@ setup(
         url='https://github.com/sagemath/sage_trac_plugin',
         packages=find_packages(),
         zip_safe=True,
-        package_data={
-            'sage_trac': [
-                'templates/*.html',
-                'htdocs/*.css'
-                ],
-            },
+        package_data={'sage_trac': ['templates/*.html',
+                                    'htdocs/*.css']},
         install_requires=[
             'pygit2',
             'TracXMLRPC',
@@ -28,7 +24,7 @@ setup(
         entry_points={
             'trac.plugins': [
                 'sage_trac = sage_trac',
-                #'sage_trac.buildbot_hook = sage_trac.buildbot_hook',
+                # 'sage_trac.buildbot_hook = sage_trac.buildbot_hook',
                 'sage_trac.gitlab = sage_trac.gitlab',
                 'sage_trac.markdown = sage_trac.markdown',
                 'sage_trac.search_branch = sage_trac.search_branch',

@@ -21,7 +21,7 @@ class BranchSearchModule(Component):
         return 'search'
 
     def xmlrpc_methods(self):
-        yield ('SEARCH_VIEW', ((list,str),), self.branch)
+        yield ('SEARCH_VIEW', ((list, str),), self.branch)
 
     def branch(self, req, terms):
         return self.get_search_results(req, [terms], ['branch'])
@@ -34,7 +34,7 @@ class BranchSearchModule(Component):
     def get_search_results(self, req, terms, filters):
         # Note: output looks like this:
         # yield (12345, 'title', from_utimestamp(0), 'owner', 'search match')
-        if not 'branch' in filters:
+        if 'branch' not in filters:
             return
         try:
             branch_name = terms[0].encode('ascii')
@@ -51,5 +51,3 @@ class BranchSearchModule(Component):
             cursor.execute(query_string, ['branch', branch_name])
             for ticket, summary, time, owner, branch in cursor:
                 yield (int(ticket), summary, from_utimestamp(time), owner, branch)
-
-

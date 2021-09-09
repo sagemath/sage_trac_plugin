@@ -67,14 +67,15 @@ class TicketLog(GitBase):
             else:
                 title = u''
             table.append(
-                    u'||[%s %s]||{{{%s}}}||'%(
+                    u'||[%s %s]||{{{%s}}}||' % (
                         self.commit_url(commit),
                         short_sha1,
                         title))
         return table
 
     # doesn't actually do anything, according to the api
-    def prepare_ticket(self, req, ticket, fields, actions): pass
+    def prepare_ticket(self, req, ticket, fields, actions):
+        pass
 
     # hack changes into validate_ticket, since api is currently silly
     def validate_ticket(self, req, ticket):
@@ -100,7 +101,7 @@ class TicketLog(GitBase):
             if old_commit is not None:
                 ignore.add(old_commit)
             try:
-                table = self.log_table(commit, limit=self.max_new_commits+1,
+                table = self.log_table(commit, limit=self.max_new_commits + 1,
                                        ignore=ignore)
             except (pygit2.GitError, KeyError):
                 return []

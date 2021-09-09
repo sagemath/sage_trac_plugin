@@ -68,7 +68,6 @@ class GitBase(Component):
     git_dir = PathOption('sage_trac', 'repository_dir', '',
                          doc='path to bare git repositories')
 
-
     cgit_protocol = Option('sage_trac', 'cgit_protocol', 'https',
                            doc='protocol to use when linking to the cgit '
                                'server (default: https)')
@@ -129,7 +128,7 @@ class GitBase(Component):
             # check for branches then tags
             try:
                 return (False,
-                        self._git.lookup_reference(s+ref_or_sha).get_object())
+                        self._git.lookup_reference(s + ref_or_sha).get_object())
             except KeyError:
                 pass
         # try raw sha1 hexes if all else fails
@@ -154,7 +153,7 @@ class GitBase(Component):
         else:
             query = {
                 'h': tip,
-                'q': base+'..'+tip,
+                'q': base + '..' + tip,
                 'qt': 'range',
             }
 

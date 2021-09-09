@@ -185,12 +185,12 @@ class GitMerger(GitBase, GenericTableProvider):
 
                 ret = self._git.get(
                         self._git.create_commit(
-                            None, # don't update any refs
-                            self._signature, # author
-                            self._signature, # committer
-                            'Temporary merge of %s into %s'%(commit.hex, repo.head.get_object().hex), # merge message
-                            merge_tree, # commit's tree
-                            [repo.head.get_object().oid, commit.oid], # parents
+                            None,  # don't update any refs
+                            self._signature,  # author
+                            self._signature,  # committer
+                            'Temporary merge of %s into %s' % (commit.hex, repo.head.get_object().hex),  # merge message
+                            merge_tree,  # commit's tree
+                            [repo.head.get_object().oid, commit.oid],  # parents
                         ))
         finally:
             # If an error occurred in the git clone the tmpdir may no longer

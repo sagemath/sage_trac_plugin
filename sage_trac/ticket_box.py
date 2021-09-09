@@ -141,7 +141,6 @@ class TicketBox(git_merger.GitMerger):
             FILTER_ID.attr('class', 'trac-id-{0}'.format(ticket['status'])),
         ]
 
-
         format_vars = {
             'nonce': hex(random.randint(0, 1 << 60)),
         }
@@ -260,7 +259,7 @@ class TicketBox(git_merger.GitMerger):
             is_sha, branch_commit = self.generic_lookup(branch)
             if is_sha:
                 filters.append(
-                        FILTER_BRANCH_TEXT.replace(branch_commit.hex[:7]+' '))
+                        FILTER_BRANCH_TEXT.replace(branch_commit.hex[:7] + ' '))
 
             if base_branch:
                 _, base_branch_commit = self.generic_lookup(base_branch)
