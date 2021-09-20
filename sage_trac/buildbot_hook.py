@@ -27,6 +27,7 @@ FILTER = Transformer('//table[@class="properties"]')
 
 RESULTS = ("Success", "Warnings", "Failure", "Skipped", "Exception", "Retry")
 
+
 class BuildbotHook(git_merger.GitMerger):
     implements(ITicketManipulator)
     implements(IXMLRPCHandler)
@@ -131,16 +132,14 @@ class BuildbotHook(git_merger.GitMerger):
             elif merge == git_merger.GIT_FASTFORWARD:
                 merge = commit
 
-        change = {
-                'repository': self.repository,
-                'who': author,
-                'files': self.get_changed_files(self.master, merge),
-                'comments': u'',
-                'branch': branch,
-                'revision': hexify(merge),
-                'revlink': self.commit_url(merge), # Maybe link to the tree instead?
-                'src': 'git',
-                }
+        change = {'repository': self.repository,
+                  'who': author,
+                  'files': self.get_changed_files(self.master, merge),
+                  'comments': u'',
+                  'branch': branch,
+                  'revision': hexify(merge),
+                  'revlink': self.commit_url(merge),  # Maybe link to the tree instead?
+                  'src': 'git'}
 
         if tracid is not None:
             change['comments'] = \
@@ -268,11 +267,9 @@ class BuildbotHook(git_merger.GitMerger):
                         '{prefix}builders/{builder}/builds/{number}'.format(
                             prefix=self.prefix,
                             builder=builder,
-                            number=number,
-                            ),
+                            number=number),
                         '',
-                        '',
-                        ))
+                        ''))
                 ))
 
     # ITicketManipulator methods
@@ -281,12 +278,13 @@ class BuildbotHook(git_merger.GitMerger):
         return []
 
     # doesn't actually do anything, according to the api
-    def prepare_ticket(self, req, ticket, fields, actions): pass
+    def prepare_ticket(self, req, ticket, fields, actions):
+        pass
 
     # IXMLRPCHandler methods
     def xmlrpc_namespace(self):
         return 'buildbot'
 
     def xmlrpc_methods(self):
-        yield (None, ((None,str,str,int,int,int),), self.set_build)
-        yield (None, ((list,int),), self.get_build)
+        yield (None, ((None, str, str, int, int, int),), self.set_build)
+        yield (None, ((list, int),), self.get_build)

@@ -88,7 +88,6 @@ class UserDataStore(Component):
                          'disabled (it no longer does anything).')
         super(UserDataStore, self).__init__()
 
-
     def save_data(self, user, dictionary):
         """
         Saves user data for user.
@@ -109,7 +108,7 @@ class UserDataStore(Component):
         with self.env.db_query as db:
             cursor = db.cursor()
             cursor.execute('SELECT key, value FROM "user_data_store" WHERE "user"=%s', (user,))
-            return {key:value for key, value in cursor}
+            return {key: value for key, value in cursor}
 
     def get_data_all_users(self):
         """
@@ -121,7 +120,7 @@ class UserDataStore(Component):
             cursor = db.cursor()
             cursor.execute('SELECT "user", key, value FROM "user_data_store"')
             for user, key, value in cursor:
-                if return_value.has_key(user):
+                if user in return_value:
                     return_value[user][key] = value
                 else:
                     return_value[user] = {key: value}
@@ -149,14 +148,14 @@ class SshKeysPlugin(GenericTableProvider):
 
     gitolite_author_name = Option(
             'sage_trac', 'gitolite_author', 'trac',
-             doc='author name to use when committing updates to the '
-                 'gitolite-admin repository')
+            doc='author name to use when committing updates to the '
+                'gitolite-admin repository')
 
     gitolite_author_email = Option(
             'sage_trac', 'gitolite_email',
             'trac@{0}'.format(socket.gethostname()),
-             doc='author e-mail to use when committing updates to the '
-                 'gitolite-admin repository')
+            doc='author e-mail to use when committing updates to the '
+                'gitolite-admin repository')
 
     _schema = [
         Table('sage_trac_ssh_keys', key=('username', 'key_order'))[
@@ -197,7 +196,7 @@ class SshKeysPlugin(GenericTableProvider):
     @locked
     def _init_gitolite_admin(self):
         """
-        Initilizes (by cloning) or cleans up (if it already exists) the
+        Initializes (by cloning) or cleans up (if it already exists) the
         local clone of the gitolite-admin repository in which SSH keys
         are stored.
 
@@ -330,8 +329,8 @@ class SshKeysPlugin(GenericTableProvider):
     # AdminCommandProvider boilerplate
 
     def _do_listusers(self):
-         for user in self._listusers():
-              printout(user)
+        for user in self._listusers():
+            printout(user)
 
     def _do_dump_key(self, user):
         printout([key[0] for key in self._getkeys(user)])
@@ -505,9 +504,9 @@ class SshKeysPlugin(GenericTableProvider):
     def xmlrpc_methods(self):
         yield (None, ((list,),), self.listusers)
         yield (None, ((list,),), self.getkeys)
-        yield (None, ((None,list),), self.setkeys)
-        yield (None, ((None,list),), self.addkeys)
-        yield (None, ((None,str),), self.addkey)
+        yield (None, ((None, list),), self.setkeys)
+        yield (None, ((None, list),), self.addkeys)
+        yield (None, ((None, str),), self.addkey)
 
     # GenericTableProvider methods
     def _upgrade_schema(self, db, prev_version):
@@ -536,7 +535,7 @@ class SshKeysPlugin(GenericTableProvider):
                         # Turns out even with DISTINCT there are some
                         # duplicates that occur after stripping whitespace;
                         # since it's difficult to do this in a manner portable
-                        # accross DB's we'll manually keep track of what
+                        # across DB's we'll manually keep track of what
                         # user/key pairs we've seen
                         if (user, key) in seen:
                             continue
@@ -548,4 +547,4 @@ class SshKeysPlugin(GenericTableProvider):
 
                         seen.add((user, key))
 
-            db('DROP TABLE user_data_store');
+            db('DROP TABLE user_data_store')

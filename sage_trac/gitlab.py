@@ -34,10 +34,10 @@ class GitlabWebhook(GitBase):
                             'this component')
 
     username = Option('sage_trac', 'gitlab_webhook_username',
-        'trac',  doc="the username that the webhook should authenticate "
-                     "as (by passing that user's auth token) and that "
-                     "will be used as the default username for ticket "
-                     "reports and git branches")
+        'trac', doc="the username that the webhook should authenticate "
+                    "as (by passing that user's auth token) and that "
+                    "will be used as the default username for ticket "
+                    "reports and git branches")
 
     branch_prefix = Option('sage_trac', 'gitlab_webhook_branch_prefix',
             'mrs/', doc='prefix to prepend (after u/<username>/) to git '
@@ -127,7 +127,6 @@ class GitlabWebhook(GitBase):
 
         req.send_no_content()
 
-
     # ITicketChangeListener methods
 
     def ticket_created(self, ticket):
@@ -146,7 +145,6 @@ class GitlabWebhook(GitBase):
                 # reason there is more than one, let's deal with them anyways
                 proj_id, mr_id = (int(x) for x in row[0].split(':'))
                 self._close_mr(ticket.id, proj_id, mr_id, ticket['resolution'])
-
 
     def ticket_deleted(self, ticket):
         pass
@@ -351,7 +349,7 @@ class GitlabWebhook(GitBase):
                     self.commit_url(commit.hex), short_sha1, title))
 
         comment = (u'New commits added to merge request.  I updated the '
-                    'commit SHA-1.')
+                   'commit SHA-1.')
         if not self._is_ancestor_of(prev_commit, new_commit):
             comment += u'  This was a forced push.'
 
@@ -401,7 +399,7 @@ class GitlabWebhook(GitBase):
         description += u'\n' + (u'[[BR]]' * n_breaks)
 
         return (u'{name} ([{user_url} @{username}]) opened a '
-                 'merge request at {url}:\n----\n{description}'.format(
+                'merge request at {url}:\n----\n{description}'.format(
                     name=name, user_url=user_url, username=username, url=url,
                     description=description))
 
@@ -430,8 +428,8 @@ class GitlabWebhook(GitBase):
                 self.gitlab_url.rstrip('/'), proj_id, mr_id)
 
         try:
-            r = requests.post(url, data={'body': text}, headers=headers,
-                             timeout=10)
+            requests.post(url, data={'body': text}, headers=headers,
+                          timeout=10)
         except Exception as exc:
             self.log.error(
                     'Error comment to GitLab: {}'.format(
@@ -451,9 +449,9 @@ class GitlabWebhook(GitBase):
         url = '{}/api/v4/projects/{}/merge_requests/{}'.format(
                 self.gitlab_url.rstrip('/'), proj_id, mr_id)
         try:
-            r = requests.put(url, data={'state_event': 'close'},
-                             headers=headers,
-                             timeout=10)
+            requests.put(url, data={'state_event': 'close'},
+                         headers=headers,
+                         timeout=10)
         except Exception as exc:
             self.log.error(
                     'Error updating merge request: {}'.format(
