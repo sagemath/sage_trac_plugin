@@ -32,7 +32,7 @@ class TicketBox(git_merger.GitMerger):
     ways:
 
     * Formats the ``branch`` field of a ticket and applies changes to the
-    ``branch`` field to the git repository.
+      ``branch`` field to the git repository.
 
     * Adds colorized formatting to the ticket ID based on the ticket status.
 

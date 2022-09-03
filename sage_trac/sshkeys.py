@@ -32,7 +32,7 @@ def locked(method):
     """
     Wrapper around fasteners.locked which provides a decorator
     for methods that allows passing the Trac logger to the
-    ``locked`` argument of fastners.locked.
+    ``locked`` argument of fasteners.locked.
 
     Also adds logging when a locked method is being entered
     and exits.
