@@ -1,3 +1,8 @@
+import os
+import shutil
+import socket
+import sys
+
 from trac.core import Component, implements, TracError
 from trac.config import Option, PathOption
 from trac.db.schema import Table, Column, Index
@@ -11,11 +16,6 @@ from trac.util.html import escape
 from tracrpc.api import IXMLRPCHandler
 
 from genshi import Markup
-
-import os
-import shutil
-import socket
-import sys
 
 from threading import Lock, current_thread
 from fasteners import InterProcessLock as IPLock, locked as locked_
