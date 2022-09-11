@@ -26,7 +26,7 @@ class TokenAuthenticator(Component):
                             'that this is well protected.')
 
     def __init__(self):
-        super(TokenAuthenticator, self).__init__()
+        super().__init__()
         if self.secret_key:
             self._serializer = JSONWebSignatureSerializer(self.secret_key)
         else:

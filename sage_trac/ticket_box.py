@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 
 import random
+import pkg_resources
+import pygit2
 
 from genshi.builder import tag
 from genshi.core import TEXT
@@ -15,9 +17,6 @@ from trac.web.chrome import add_stylesheet, ITemplateProvider
 from .common import _signature_re
 
 from . import git_merger
-
-import pkg_resources
-import pygit2
 
 FILTER_PROPERTIES = Transformer(
     '//div[@id="ticket"]/table[@class="properties"]')
@@ -96,7 +95,7 @@ class TicketBox(git_merger.GitMerger):
                       'ticket.html'])
 
     def __init__(self):
-        super(TicketBox, self).__init__()
+        super().__init__()
 
         m = _signature_re.match(self.release_manager_signature)
         if not m:
@@ -121,7 +120,7 @@ class TicketBox(git_merger.GitMerger):
         def sort_key(b):
             return ('order' not in b, b.get('order'), b['name'])
 
-        return sorted(badges.values(), key=sort_key)
+        return list(sorted(badges.values(), key=sort_key))
 
     def filter_stream(self, req, method, filename, stream, data):
         """
@@ -138,7 +137,7 @@ class TicketBox(git_merger.GitMerger):
 
         filters = [
             # Add additional color coding to the ticket ID
-            FILTER_ID.attr('class', 'trac-id-{0}'.format(ticket['status'])),
+            FILTER_ID.attr('class', f"trac-id-{ticket['status']}"),
         ]
 
         format_vars = {
@@ -190,8 +189,8 @@ class TicketBox(git_merger.GitMerger):
 
         def apply_filters(filters):
             s = stream
-            for filter in filters:
-                s |= filter
+            for filtre in filters:
+                s |= filtre
             return s
 
         return apply_filters(filters)
@@ -211,33 +210,33 @@ class TicketBox(git_merger.GitMerger):
 
         def merge_link(url=None, class_='positive_review'):
             if url is None:
-                return FILTER_BRANCH_TEXT.map(unicode.strip, TEXT).wrap(
+                return FILTER_BRANCH_TEXT.map(str.strip, TEXT).wrap(
                         tag.span(class_=class_))
 
-            return FILTER_BRANCH_TEXT.map(unicode.strip, TEXT).wrap(
+            return FILTER_BRANCH_TEXT.map(str.strip, TEXT).wrap(
                     tag.a(class_=class_, href=url))
 
         def commits_link(url):
-            links = [u' (']
+            links = [' (']
             if url is not None:
                 links.append(tag.a('Commits', href=url))
 
             link_vars = {'master': self.master_branch, 'branch': branch}
 
             if self.github_url:
-                links.append(u', ')
+                links.append(', ')
                 github_url = (self.github_url.rstrip('/') +
                               "/compare/{master}...{branch}")
                 links.append(tag.a('GitHub',
                                    href=github_url.format(**link_vars)))
             if self.gitlab_url:
-                links.append(u', ')
+                links.append(', ')
                 gitlab_url = (self.gitlab_url.rstrip('/') +
                               "/-/compare/{master}...{branch}")
                 links.append(tag.a('GitLab',
                                    href=gitlab_url.format(**link_vars)))
 
-            links.append(u')')
+            links.append(')')
 
             return FILTER_BRANCH.append(tag.span(*links))
 
@@ -245,7 +244,9 @@ class TicketBox(git_merger.GitMerger):
             return [FILTER_BRANCH.attr("class", "needs_work"),
                     FILTER_BRANCH.attr("title", error)]
 
-        def error(error, filters=[]):
+        def error(error, filters=None):
+            if filters is None:
+                filters = []
             return filters + error_filters(error)
 
         branch = branch.strip()
@@ -266,10 +267,9 @@ class TicketBox(git_merger.GitMerger):
             else:
                 base_branch_commit = None
         except (KeyError, ValueError) as err:
-            if err.message.find('Ambiguous') < 0:
+            if 'Ambiguous' not in str(err):
                 return error("branch does not exist")
-            else:
-                return error("sha1 hash is too ambiguous")
+            return error("sha1 hash is too ambiguous")
 
         ret = self.peek_merge(branch_commit, base_branch=base_branch)
         _, log_url = self.get_merge_url(req, branch_commit, ret,
@@ -295,7 +295,7 @@ class TicketBox(git_merger.GitMerger):
         else:
             if ret == git_merger.GIT_FAILED_MERGE:
                 return error("trac's automerging failed", filters)
-            elif git_merger_url is None:
+            if git_merger_url is None:
                 # Shortcut in case no git merge was generated
                 return filters
 

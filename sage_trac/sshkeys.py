@@ -3,7 +3,11 @@ import shutil
 import socket
 import sys
 
-from trac.core import Component, implements, TracError
+from threading import Lock, current_thread
+from genshi import Markup
+from pkg_resources import resource_filename
+
+from trac.core import implements, TracError
 from trac.config import Option, PathOption
 from trac.db.schema import Table, Column, Index
 from trac.web.chrome import ITemplateProvider, add_notice, add_warning
@@ -15,9 +19,6 @@ from trac.util.html import escape
 
 from tracrpc.api import IXMLRPCHandler
 
-from genshi import Markup
-
-from threading import Lock, current_thread
 from fasteners import InterProcessLock as IPLock, locked as locked_
 from sshpubkeys import SSHKey, InvalidKeyException
 
@@ -72,61 +73,6 @@ def locked(method):
     return wrapper
 
 
-class UserDataStore(Component):
-    _schema = [
-        Table('user_data_store', key=('user', 'key'))[
-            Column('user'),
-            Column('key'),
-            Column('value')
-        ]
-    ]
-
-    _schema_version = 1
-
-    def __init__(self):
-        self.log.warning('The UserDataStore plugin is deprecated and may be '
-                         'disabled (it no longer does anything).')
-        super(UserDataStore, self).__init__()
-
-    def save_data(self, user, dictionary):
-        """
-        Saves user data for user.
-        """
-
-        with self.env.db_transaction as db:
-            cursor = db.cursor()
-            cursor.execute('DELETE FROM "user_data_store" WHERE "user"=%s', (user,))
-
-            for key, value in dictionary.iteritems():
-                cursor.execute('INSERT INTO "user_data_store" VALUES (%s, %s, %s)', (user, key, value))
-
-    def get_data(self, user):
-        """
-        Returns a dictionary with all data keys
-        """
-
-        with self.env.db_query as db:
-            cursor = db.cursor()
-            cursor.execute('SELECT key, value FROM "user_data_store" WHERE "user"=%s', (user,))
-            return {key: value for key, value in cursor}
-
-    def get_data_all_users(self):
-        """
-        Returns a dictionary with all data keys
-        """
-
-        return_value = {}
-        with self.env.db_query as db:
-            cursor = db.cursor()
-            cursor.execute('SELECT "user", key, value FROM "user_data_store"')
-            for user, key, value in cursor:
-                if user in return_value:
-                    return_value[user][key] = value
-                else:
-                    return_value[user] = {key: value}
-        return return_value
-
-
 class SshKeysPlugin(GenericTableProvider):
     implements(IPreferencePanelProvider, IAdminCommandProvider,
                IXMLRPCHandler, ITemplateProvider)
@@ -147,15 +93,15 @@ class SshKeysPlugin(GenericTableProvider):
                                     'trac environment path')
 
     gitolite_author_name = Option(
-            'sage_trac', 'gitolite_author', 'trac',
-            doc='author name to use when committing updates to the '
-                'gitolite-admin repository')
+        'sage_trac', 'gitolite_author', 'trac',
+        doc='author name to use when committing updates to the '
+        'gitolite-admin repository')
 
     gitolite_author_email = Option(
-            'sage_trac', 'gitolite_email',
-            'trac@{0}'.format(socket.gethostname()),
-            doc='author e-mail to use when committing updates to the '
-                'gitolite-admin repository')
+        'sage_trac', 'gitolite_email',
+        'trac@{0}'.format(socket.gethostname()),
+        doc='author e-mail to use when committing updates to the '
+        'gitolite-admin repository')
 
     _schema = [
         Table('sage_trac_ssh_keys', key=('username', 'key_order'))[
@@ -170,7 +116,7 @@ class SshKeysPlugin(GenericTableProvider):
     _schema_version = 1
 
     def __init__(self):
-        super(SshKeysPlugin, self).__init__()
+        super().__init__()
 
         if not self.gitolite_host:
             raise TracError(
@@ -178,7 +124,7 @@ class SshKeysPlugin(GenericTableProvider):
                 'trac.ini')
 
         lockfilename = '.{0}.lock'.format(
-                os.path.basename(self.gitolite_admin))
+            os.path.basename(self.gitolite_admin))
 
         lockfile = os.path.join(os.path.dirname(self.gitolite_admin),
                                 lockfilename)
@@ -233,7 +179,7 @@ class SshKeysPlugin(GenericTableProvider):
             return
 
         clone_path = '{user}@{host}:gitolite-admin'.format(
-                user=self.gitolite_user, host=self.gitolite_host)
+            user=self.gitolite_user, host=self.gitolite_host)
         ret, out = self._git('clone', clone_path, self.gitolite_admin,
                              chdir=False)
         if ret != 0:
@@ -242,8 +188,8 @@ class SshKeysPlugin(GenericTableProvider):
             raise TracError(
                 'Failed to clone gitolite-admin repository: '
                 '{0}'.format(out))
-        else:
-            self._configure_gitolite_admin()
+
+        self._configure_gitolite_admin()
 
     def _configure_gitolite_admin(self):
         ret, out = self._git('config', '--local', 'user.name',
@@ -268,8 +214,8 @@ class SshKeysPlugin(GenericTableProvider):
             raise TracError(
                 'Error cleaning up the gitolite-admin repository: '
                 '{0}'.format(out))
-        else:
-            self._configure_gitolite_admin()
+
+        self._configure_gitolite_admin()
 
     def _update_gitolite_admin(self):
         # Fetch latest changes from the main repository and reset
@@ -311,7 +257,6 @@ class SshKeysPlugin(GenericTableProvider):
         return 'prefs_ssh_keys.html', {'ssh_keys': ssh_keys}
 
     def get_templates_dirs(self):
-        from pkg_resources import resource_filename
         return [resource_filename('sage_trac', 'templates')]
 
     def get_htdocs_dirs(self):
@@ -448,8 +393,7 @@ class SshKeysPlugin(GenericTableProvider):
         """
 
         def wrap_key(key):
-            return '<p style="word-wrap: break-word; margin: 1em 0">{0}</p>'.format(
-                    escape(key))
+            return '<p style="word-wrap: break-word; margin: 1em 0">{0}</p>'.format(escape(key))
 
         for idx, key in enumerate(keys[:]):
             msg = None

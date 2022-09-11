@@ -1,17 +1,15 @@
 # -*- coding: utf-8 -*-
+import re
+import os
+import subprocess
+from urllib.parse import urlencode, urlsplit, urlunsplit
+
+import pygit2
 
 from trac.core import Component, TracError, implements
 from trac.config import Option, PathOption
 from trac.db.api import DatabaseManager
 from trac.env import IEnvironmentSetupParticipant
-
-import pygit2
-import re
-import os
-import subprocess
-import urllib
-import urlparse
-
 
 # Simple regexp for "Name <email>" signatures
 _signature_re = re.compile(r'\s*(.*\S)\s*<(.+@.+)>\s*$')
@@ -92,19 +90,18 @@ class GitBase(Component):
         if not self.git_dir or not os.path.exists(self.git_dir):
             raise TracError("repository_dir is not set in the config file or "
                             "does not exist")
-
         if self.cgit_url and self.cgit_host:
             raise TracError('both cgit_url and cgit_host are defined in '
                             'trac.ini and may conflict; define only one or '
                             'the other')
-        elif not (self.cgit_url or self.cgit_host):
+        if not (self.cgit_url or self.cgit_host):
             raise TracError('one of cgit_url or cgit_host must be set in '
                             'trac.ini')
-        elif self.cgit_host:
+        if self.cgit_host:
             self._cgit_host = (self.cgit_protocol, self.cgit_host)
             self._cgit_path = ''
         else:
-            url_split = urlparse.urlsplit(self.cgit_url)
+            url_split = urlsplit(self.cgit_url)
             self._cgit_host = url_split[:2]
             self._cgit_path = url_split[2].rstrip('/')
 
@@ -134,13 +131,15 @@ class GitBase(Component):
         # try raw sha1 hexes if all else fails
         return (True, self._git[ref_or_sha])
 
-    def _cgit_url(self, path='', query={}, fragment=''):
+    def _cgit_url(self, path='', query=None, fragment=''):
+        if query is None:
+            query = {}
         if not isinstance(path, str):
             path = '/'.join(path)
 
-        return urlparse.urlunsplit(self._cgit_host +
-                ('/'.join((self._cgit_path, path)),) +
-                (urllib.urlencode(query), fragment))
+        return urlunsplit(self._cgit_host +
+                          ('/'.join((self._cgit_path, path)),) +
+                          (urlencode(query), fragment))
 
     def commit_url(self, commit):
         commit = hexify(commit)
@@ -193,7 +192,7 @@ class GenericTableProvider(Component):
                 "valid _schema and _schema_version attributes." %
                 self.__class__.__name__)
 
-        super(GenericTableProvider, self).__init__()
+        super().__init__()
 
     @property
     def _name(self):

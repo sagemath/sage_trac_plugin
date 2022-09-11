@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 
+import pygit2
+
 from trac.core import implements
 from trac.config import ListOption, IntOption
 from trac.ticket.api import ITicketManipulator
 
 from .common import GitBase
-
-import pygit2
 
 
 class TicketLog(GitBase):
@@ -28,7 +28,7 @@ class TicketLog(GitBase):
                                     'botched merges (default: 10)')
 
     def _valid_commit(self, val):
-        if not isinstance(val, basestring):
+        if not isinstance(val, str):
             return
         if len(val) != 40:
             return
@@ -38,7 +38,9 @@ class TicketLog(GitBase):
         except ValueError:
             return
 
-    def log_table(self, new_commit, limit=float('inf'), ignore=[]):
+    def log_table(self, new_commit, limit=float('inf'), ignore=None):
+        if ignore is None:
+            ignore = []
         walker = self._git.walk(self._git[new_commit].oid,
                 pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_TIME)
 
@@ -65,9 +67,9 @@ class TicketLog(GitBase):
             if title:
                 title = title[0]
             else:
-                title = u''
+                title = ''
             table.append(
-                    u'||[%s %s]||{{{%s}}}||' % (
+                    '||[%s %s]||{{{%s}}}||' % (
                         self.commit_url(commit),
                         short_sha1,
                         title))
@@ -85,11 +87,11 @@ class TicketLog(GitBase):
             ticket['branch'] = branch = branch.strip()
             commit = self._git.lookup_branch(branch)
             if commit is None:
-                commit = ticket['commit'] = u''
+                commit = ticket['commit'] = ''
             else:
-                commit = ticket['commit'] = unicode(commit.get_object().hex)
+                commit = ticket['commit'] = str(commit.get_object().hex)
         else:
-            commit = ticket['commit'] = u''
+            commit = ticket['commit'] = ''
 
         if (req.args.get('preview') is None and
                 req.args.get('id') is not None and
@@ -106,16 +108,16 @@ class TicketLog(GitBase):
             except (pygit2.GitError, KeyError):
                 return []
             if len(table) > self.max_new_commits:
-                header = u'Last {0} new commits:'.format(self.max_new_commits)
+                header = 'Last {0} new commits:'.format(self.max_new_commits)
                 table = table[:self.max_new_commits]
             else:
-                header = u'New commits:'
+                header = 'New commits:'
             if table:
-                comment = req.args.get('comment', u'').splitlines()
+                comment = req.args.get('comment', '').splitlines()
                 if comment:
-                    comment.append(u'----')
+                    comment.append('----')
                 comment.append(header)
                 comment.extend(reversed(table))
-                req.args['comment'] = u'\n'.join(comment)
+                req.args['comment'] = '\n'.join(comment)
 
         return []

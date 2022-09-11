@@ -73,8 +73,7 @@ class GitlabWebhook(GitBase):
     # IRequestHandler methods
 
     def match_request(self, req):
-        if req.method == 'POST' and re.match(self.endpoint, req.path_info):
-            return True
+        return req.method == 'POST' and re.match(self.endpoint, req.path_info)
 
     def process_request(self, req):
         # First check for the expected X-Gitlab-Event header
@@ -342,24 +341,24 @@ class GitlabWebhook(GitBase):
             if title:
                 title = title[0]
             else:
-                title = u''
+                title = ''
 
             table.append(
-                u'||[{} {}]||{{{{{{{}}}}}}}||'.format(
+                '||[{} {}]||{{{{{{{}}}}}}}||'.format(
                     self.commit_url(commit.hex), short_sha1, title))
 
-        comment = (u'New commits added to merge request.  I updated the '
+        comment = ('New commits added to merge request.  I updated the '
                    'commit SHA-1.')
         if not self._is_ancestor_of(prev_commit, new_commit):
-            comment += u'  This was a forced push.'
+            comment += '  This was a forced push.'
 
         if len(table) > self.max_commits:
-            comment += u'  Last {} new commits:\n'.format(self.max_commits)
+            comment += '  Last {} new commits:\n'.format(self.max_commits)
             table = table[:self.max_commits]
         else:
-            comment += u'  New commits:\n'
+            comment += '  New commits:\n'
 
-        comment += u'\n'.join(reversed(table))
+        comment += '\n'.join(reversed(table))
 
         return comment
 
@@ -392,13 +391,13 @@ class GitlabWebhook(GitBase):
         # good enough
         n_breaks = max(5 - description.count('\n'), 0)
         if description.strip():
-            description = u'{{{\n#!markdown\n' + description + '\n}}}'
+            description = '{{{\n#!markdown\n' + description + '\n}}}'
         else:
-            description = u''
+            description = ''
 
-        description += u'\n' + (u'[[BR]]' * n_breaks)
+        description += '\n' + ('[[BR]]' * n_breaks)
 
-        return (u'{name} ([{user_url} @{username}]) opened a '
+        return ('{name} ([{user_url} @{username}]) opened a '
                 'merge request at {url}:\n----\n{description}'.format(
                     name=name, user_url=user_url, username=username, url=url,
                     description=description))

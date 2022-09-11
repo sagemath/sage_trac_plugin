@@ -1,14 +1,7 @@
 # -*- coding: utf-8 -*-
-
-from trac.core import implements, TracError, tracid
-from trac.ticket.api import ITicketManipulator
-from trac.ticket.model import Ticket
-from trac.web.api import ITemplateStreamFilter
-from tracrpc.api import IXMLRPCHandler
-
-from .common import hexify
-
-from . import git_merger
+import multiprocessing
+import re
+from urllib.parse import urlunsplit
 
 from genshi.builder import tag
 from genshi.filters import Transformer
@@ -17,9 +10,14 @@ from twisted.cred import credentials
 from twisted.internet import reactor
 from twisted.spread import pb
 
-import multiprocessing
-import re
-import urlparse
+from trac.core import implements, TracError, tracid
+from trac.ticket.api import ITicketManipulator
+from trac.ticket.model import Ticket
+from trac.web.api import ITemplateStreamFilter
+from tracrpc.api import IXMLRPCHandler
+
+from .common import hexify
+from . import git_merger
 
 GIT_DIFF_REGEX = re.compile(r'^diff --git a/(.*) b/(.*)$', re.MULTILINE)
 
@@ -34,19 +32,19 @@ class BuildbotHook(git_merger.GitMerger):
     implements(ITemplateStreamFilter)
 
     def __init__(self):
-        super(BuildbotHook, self).__init__()
+        super().__init__()
 
         for attr in ("host", "username", "password", "repository"):
             setattr(self, attr, self.config.get("buildbot", attr, ''))
 
         if self.host == '':
             raise TracError("Must set the buildmast host in trac.ini")
+
+        if ':' in self.host:
+            self.host, self.port = self.host.split(':')[:2]
+            self.port = int(self.port)
         else:
-            if ':' in self.host:
-                self.host, self.port = self.host.split(':')[:2]
-                self.port = int(self.port)
-            else:
-                self.port = 9989
+            self.port = 9989
 
         self.port = int(self.config.get("buildbot", "port", self.port))
         self.prefix = self.config.get("buildbot", "prefix", "")
@@ -57,13 +55,13 @@ class BuildbotHook(git_merger.GitMerger):
         if ancestor.oid == descendant.oid:
             return None
         matches = GIT_DIFF_REGEX.finditer(
-                self._git.diff(ancestor, descendant).patch)
+            self._git.diff(ancestor, descendant).patch)
         return {file for match in matches for file in match.groups()}
 
     def _get_cache(self, commitortracid):
         BuildbotHook._create_table(self)
         commit = hexify(commitortracid)
-        if isinstance(commit, basestring):
+        if isinstance(commit, str):
             statement = ('SELECT base, builder, number, status FROM "build_store" WHERE target=%s', (commit,))
         else:
             statement = ('SELECT base, builder, number, status FROM "build_store" WHERE tracid=%s', (tracid,))
@@ -129,13 +127,13 @@ class BuildbotHook(git_merger.GitMerger):
             if merge in (git_merger.GIT_UPTODATE, git_merger.GIT_FAILED_MERGE):
                 # don't bother trying to build failed merges or old branches
                 return None
-            elif merge == git_merger.GIT_FASTFORWARD:
+            if merge == git_merger.GIT_FASTFORWARD:
                 merge = commit
 
         change = {'repository': self.repository,
                   'who': author,
                   'files': self.get_changed_files(self.master, merge),
-                  'comments': u'',
+                  'comments': '',
                   'branch': branch,
                   'revision': hexify(merge),
                   'revlink': self.commit_url(merge),  # Maybe link to the tree instead?
@@ -143,13 +141,9 @@ class BuildbotHook(git_merger.GitMerger):
 
         if tracid is not None:
             change['comments'] = \
-                    u'From Trac #{tracid} ({base}/{tracid})'.format(
-                            base=self.env.base_url, tracid=unicode(tracid))
+                'From Trac #{tracid} ({base}/{tracid})'.format(
+                    base=self.env.base_url, tracid=str(tracid))
             change['properties']['trac_ticket'] = tracid
-
-        for key in change:
-            if isinstance(change[key], str):
-                change[key] = unicode(change[key])
 
         queue = multiprocessing.Queue()
 
@@ -157,8 +151,8 @@ class BuildbotHook(git_merger.GitMerger):
             self.log.debug('sucessfully connected to {}'.format(self.host))
             deferred = remote.callRemote('addChange', change)
             deferred.addCallbacks(
-                    lambda res: queue.put(True),
-                    lambda res: queue.put(False))
+                lambda res: queue.put(True),
+                lambda res: queue.put(False))
             deferred.addBoth(lambda res: remote.broker.transport.loseConnection())
             return deferred
 
@@ -174,7 +168,7 @@ class BuildbotHook(git_merger.GitMerger):
         def run_reactor():
             factory = pb.PBClientFactory()
             deferred = factory.login(
-                    credentials.UsernamePassword(self.username, self.password))
+                credentials.UsernamePassword(self.username, self.password))
 
             reactor.connectTCP(self.host, self.port, factory)
 
@@ -258,19 +252,19 @@ class BuildbotHook(git_merger.GitMerger):
                 color_class = 'positive_review'
 
         return stream | buildbot_status(
-                tag.a(
-                    result,
-                    class_=color_class,
-                    href=urlparse.urlunsplit((
-                        'http',
-                        self.host,
-                        '{prefix}builders/{builder}/builds/{number}'.format(
-                            prefix=self.prefix,
-                            builder=builder,
-                            number=number),
-                        '',
-                        ''))
-                ))
+            tag.a(
+                result,
+                class_=color_class,
+                href=urlunsplit((
+                    'http',
+                    self.host,
+                    '{prefix}builders/{builder}/builds/{number}'.format(
+                        prefix=self.prefix,
+                        builder=builder,
+                        number=number),
+                    '',
+                    ''))
+            ))
 
     # ITicketManipulator methods
     def validate_ticket(self, req, ticket):

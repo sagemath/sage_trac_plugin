@@ -7,8 +7,6 @@ import os.path
 
 import pygit2
 
-from .common import (GitBase, _signature_re, GenericTableProvider, run_git)
-
 from trac.core import implements, TracError
 from trac.config import Option
 from trac.db.schema import Table, Column
@@ -16,6 +14,8 @@ from trac.ticket.model import Ticket
 from trac.web import IRequestHandler
 from trac.web.chrome import add_warning
 from tracrpc.api import IXMLRPCHandler
+
+from .common import (GitBase, _signature_re, GenericTableProvider, run_git)
 
 GIT_SPECIAL_MERGES = ('GIT_FASTFORWARD', 'GIT_UPTODATE', 'GIT_FAILED_MERGE')
 for _merge in GIT_SPECIAL_MERGES:
@@ -30,10 +30,10 @@ class GitMerger(GitBase, GenericTableProvider):
     implements(IXMLRPCHandler, IRequestHandler)
 
     trac_signature = Option(
-            'sage_trac', 'trac_signature', 'trac <trac@sagemath.org>',
-            doc='`Name <email@example.com>` format signature to use '
-                'for commits made to the Git repository by the Trac '
-                'plugin (default: trac <trac@sagemath.org>)')
+        'sage_trac', 'trac_signature', 'trac <trac@sagemath.org>',
+        doc='`Name <email@example.com>` format signature to use '
+        'for commits made to the Git repository by the Trac '
+        'plugin (default: trac <trac@sagemath.org>)')
 
     _schema = [
         Table('merge_store', key='target')[
@@ -46,7 +46,7 @@ class GitMerger(GitBase, GenericTableProvider):
     _schema_version = 1
 
     def __init__(self):
-        super(GitMerger, self).__init__()
+        super().__init__()
 
         m = _signature_re.match(self.trac_signature)
         if not m:
@@ -129,7 +129,7 @@ class GitMerger(GitBase, GenericTableProvider):
                 tmp = tmp.hex
             cursor = db.cursor()
             cursor.execute('INSERT INTO "merge_store" VALUES (%s, %s, %s)',
-                    (base.hex, commit.hex, tmp))
+                           (base.hex, commit.hex, tmp))
 
     def _merge(self, commit, base_branch):
         tmpdir = tempfile.mkdtemp()
@@ -184,14 +184,14 @@ class GitMerger(GitBase, GenericTableProvider):
                 merge_tree = recursive_write(repo.get(merge_tree))
 
                 ret = self._git.get(
-                        self._git.create_commit(
-                            None,  # don't update any refs
-                            self._signature,  # author
-                            self._signature,  # committer
-                            'Temporary merge of %s into %s' % (commit.hex, repo.head.get_object().hex),  # merge message
-                            merge_tree,  # commit's tree
-                            [repo.head.get_object().oid, commit.oid],  # parents
-                        ))
+                    self._git.create_commit(
+                        None,  # don't update any refs
+                        self._signature,  # author
+                        self._signature,  # committer
+                        'Temporary merge of %s into %s' % (commit.hex, repo.head.get_object().hex),  # merge message
+                        merge_tree,  # commit's tree
+                        [repo.head.get_object().oid, commit.oid],  # parents
+                    ))
         finally:
             # If an error occurred in the git clone the tmpdir may no longer
             # exist
@@ -204,7 +204,7 @@ class GitMerger(GitBase, GenericTableProvider):
             base = self.master
 
         walker = self._git.walk(base.oid,
-                pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE)
+            pygit2.GIT_SORT_TOPOLOGICAL | pygit2.GIT_SORT_REVERSE)
         walker.hide(branch.oid)
         for commit in walker:
             if (branch.oid in (p.oid for p in commit.parents) and
